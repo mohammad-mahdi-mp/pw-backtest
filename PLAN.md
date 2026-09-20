@@ -1,0 +1,412 @@
+# pw-backtest — Full Platform Plan
+
+> Personal backtesting & replay trading platform, inspired by FXReply, built like TradingView.
+> Target OS: Fedora 44 Workstation (self-hosted, single-user).
+> Language: English UI. Markets: Forex + Crypto + Stocks.
+
+---
+
+## 1. Vision & Core Features
+
+### 1.1 Must-Have (MVP)
+1. **Interactive Replay Mode (FXReply-style)**
+   - Step candle-by-candle, fast-forward, jump to any date/time
+   - Virtual trading during replay (market / pending / stop / limit orders)
+   - Position sizing, leverage, commission/slippage simulation
+   - Trading journal: notes, screenshots, tags per trade
+2. **TradingView-like charts**
+   - Multiple timeframes (1s → 1M)
+   - Candlesticks / bars / line / Heikin-Ashi / Renko / Kagi
+   - Zoom / pan / crosshair / time-sync across panes
+   - Drawing tools: trendline, horizontal/vertical ray, rectangle, fib, text, pitchfork, channels
+3. **Pine Script engine**
+   - Write indicators & strategies in Pine Script (target v5 compat subset)
+   - Hot-reload scripts, overlay on main chart or separate pane
+   - Backtest strategies with auto-trades + equity curve + P&L metrics
+4. **Data ingestion**
+   - **OANDA REST v20 API** (forex real-time + historical)
+   - **Interactive Brokers (IBKR / TWS Gateway)** via `ib_insync` (stocks, futures, forex)
+   - **CCXT** (crypto: Binance, Kucoin, OKX, Bybit …)
+   - **Yahoo Finance** (`yfinance`) free EOD stocks/ETFs
+   - **Dukascopy** tick-level forex (via `dukascopy-node` or Python downloader)
+   - CSV import (MT4/MT5, TradingView export)
+5. **Backtesting engine (non-Pine path too)**
+   - Event-driven engine (tick/bar resolution)
+   - Customizable commissions, spread, slippage models
+   - Portfolio simulation (multi-symbol, multi-strategy)
+   - Metrics: CAGR, Sharpe/Sortino, MaxDD, Win %, Profit Factor, MAE/MFE, Expectancy
+6. **Paper / Live trading**
+   - Paper trading mode (real-time feed, virtual account)
+   - Live execution through OANDA / IBKR (later phase)
+
+### 1.2 Nice-to-Have (v2)
+- Strategy optimization (walk-forward, grid search)
+- Monte Carlo analysis
+- Screener (custom scans across many symbols)
+- Alerts (desktop + email/Telegram)
+- Community scripts store (local folder sharing)
+- AI-assisted analysis (optional later)
+- Multi-monitor layout saving
+- Playback speed ×0.1 → ×1000
+
+---
+
+## 2. Tech Stack
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Frontend (Web UI)                        │
+│  React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui         │
+│  TradingView Lightweight Charts v4  (free, core candlesticks)   │
+│  Custom overlay canvas for drawing tools                        │
+│  Monaco Editor for Pine Script (code editor w/ autocomplete)    │
+│  Zustand for state  ·  TanStack Query for data fetching         │
+│  Recharts / lightweight-charts analytics panes                  │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │  WebSocket (realtime) + HTTP/REST
+┌────────────────────────────▼─────────────────────────────────────┐
+│                         Backend (Python)                        │
+│  FastAPI  +  Uvicorn  +  asyncio                                │
+│  ┌──────────────┬──────────────┬──────────────┬────────────────┐ │
+│  │ Data Layer   │ Replay       │ Backtest     │ Pine Engine    │ │
+│  │ ib_insync    │ Engine       │ Engine       │ (see §4)       │ │
+│  │ oandapyV20   │              │ (event-      │                │ │
+│  │ ccxt         │              │  driven)     │                │ │
+│  │ yfinance     │              │              │                │ │
+│  └──────┬───────┴──────┬───────┴──────┬───────┴────────┬───────┘ │
+└─────────┼──────────────┼──────────────┼────────────────┼─────────┘
+          │              │              │                │
+┌─────────▼──────────────▼──────────────▼────────────────▼─────────┐
+│                       Storage                                    │
+│  SQLite (default, zero-config)  /  PostgreSQL (optional later)   │
+│  SQLAlchemy 2.x ORM + Alembic migrations                         │
+│  Timescale storage: Parquet files per symbol/timeframe            │
+│   (fast bulk reads for backtesting)                              │
+└──────────────────────────────────────────────────────────────────┘
+
+Deployment on Fedora 44:
+  - Podman pods OR systemd services (no Docker dependency)
+  - Python 3.12 virtualenv + npm/pnpm for frontend
+  - Localhost only (127.0.0.1:8000) by default
+```
+
+### Why this stack?
+- **FastAPI**: async native, great websockets, Python has the best quant/data ecosystem.
+- **Lightweight Charts (TradingView OSS)**: same rendering core as TradingView, no license fee for personal use, fast, React bindings available.
+- **Monaco editor**: VSCode's engine → syntax highlighting, autocompletion, errors for Pine.
+- **SQLite + Parquet**: zero-install, perfect for personal use, no server needed. Parquet is columnar, fast for time-series scans.
+- **React/TS/Vite**: modern, hot reload, huge ecosystem of charting/components.
+
+---
+
+## 3. Project Structure (monorepo)
+
+```
+pw-backtest/
+├── backend/
+│   ├── app/
+│   │   ├── main.py                # FastAPI entrypoint
+│   │   ├── api/                   # REST + WS routes
+│   │   │   ├── data.py
+│   │   │   ├── replay.py
+│   │   │   ├── backtest.py
+│   │   │   ├── pine.py
+│   │   │   └── auth.py            # (simple token for local)
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   └── events.py          # event bus
+│   │   ├── data/
+│   │   │   ├── providers/         # oanda, ibkr, ccxt, yfinance, dukascopy
+│   │   │   ├── storage.py         # sqlite + parquet
+│   │   │   └── downloader.py      # bulk/backfill jobs
+│   │   ├── replay/
+│   │   │   └── engine.py          # replay state machine + virtual broker
+│   │   ├── backtest/
+│   │   │   ├── engine.py          # event-driven engine
+│   │   │   ├── broker.py
+│   │   │   ├── metrics.py
+│   │   │   └── optimizer.py
+│   │   ├── pine/
+│   │   │   ├── parser.py          # AST
+│   │   │   ├── compiler.py        # AST → Python
+│   │   │   ├── runtime.py         # execution (series/bars)
+│   │   │   └── stdlib/            # ta.*, math.*, strategy.* built-ins
+│   │   ├── models/                # SQLAlchemy models
+│   │   │   ├── user.py
+│   │   │   ├── symbol.py
+│   │   │   ├── trade.py
+│   │   │   ├── order.py
+│   │   │   └── script.py
+│   │   └── scripts/               # Pine scripts storage (on disk)
+│   ├── tests/
+│   ├── pyproject.toml
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── app/                   # App shell, router
+│   │   ├── components/
+│   │   │   ├── charts/            # LightweightCharts wrapper, drawing tools
+│   │   │   ├── replay/            # playback controls, order ticket
+│   │   │   ├── pine-editor/       # Monaco editor, script manager
+│   │   │   ├── backtest/          # results, equity curve, trade list
+│   │   │   ├── watchlist/
+│   │   │   └── ui/                # shadcn components
+│   │   ├── hooks/                 # useChart, useReplay, usePine, useFeed …
+│   │   ├── stores/                # zustand
+│   │   ├── lib/                   # api client, formatters
+│   │   └── types/
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tailwind.config.js
+├── data/
+│   ├── db.sqlite3                 # local database (sqlite)
+│   └── market/                    # parquet files, symbol/timeframe/
+├── scripts/                       # dev helpers
+│   ├── setup_fedora.sh            # install deps on Fedora 44
+│   ├── run_dev.sh                 # start backend+frontend
+│   └── seed_sample_data.py
+├── docs/
+│   ├── architecture.md
+│   ├── pine_compat.md             # which Pine v5 features we support
+│   └── datasources.md
+├── PLAN.md                        # this file
+└── README.md
+```
+
+---
+
+## 4. Pine Script Engine — Strategy
+
+Pine Script is large; we target a **highly compatible Pine v5 subset** that covers 90% of indicators/strategies people actually use.
+
+### Approach
+**Compile Pine → Python AST → execute with a numpy/pandas/ta-lib runtime.**
+
+Why not embed a JS engine? Because:
+- Backtesting happens server-side in Python (fast vectorized operations with numpy/pandas).
+- We can run the same code for replay and backtest.
+- Gives us full access to ta-lib (150+ indicators) and custom Python.
+
+### Phases
+1. **Lexer + Parser** (ANTTLR v4 grammar or hand-written Pratt parser for simplicity)
+   - Produce AST for: `var`, `if/else`, `for`, `//@version`, `indicator()`, `strategy()`, `plot()`, `ta.*`, `math.*`, `str.*`, `input.*`
+2. **Type system** (simple / series / int / float / bool / color / string)
+3. **Runtime**
+   - Each Pine script runs bar-by-bar OR vectorized (fall back to bar-by-bar when `var`, `varip`, or mutable state is used)
+   - Built-in libraries:
+     - `ta.*`: sma, ema, rsi, macd, bollinger, atr, stoch, cci, wma, vwap, supertrend, … via `ta-lib` + custom
+     - `strategy.*`: `strategy.entry/exit/close`, `strategy.position_size`, `strategy.netprofit`
+     - `math.*`, `ta.valuewhen`, `ta.barstate.*`, `ta.crossover/under`, `ta.highest/lowest`
+4. **Bridge to chart**: script returns series (lines/histograms/fills) → JSON → lightweight-charts.addSeries
+5. **Backtest bridge**: `strategy.*` calls produce orders in our event-driven backtester.
+
+### Fallback
+For scripts we can't compile (advanced Pine), we'll provide **Python strategy API** (`class MyStrategy(Strategy): def on_bar(self, bar): ...`) that works everywhere — you can always drop to Python.
+
+---
+
+## 5. Backtesting Engine Design
+
+Event-driven, bar/tick level.
+
+```
+Event types:
+  Tick   (price update at micro-resolution)
+  Bar    (new closed bar)
+  Order  (submit, fill, cancel)
+  Signal (from strategy)
+  Timer  (scheduled)
+
+Loop:
+  for event in timeline:
+      broker.process(event)      # fills SL/TP/limit orders
+      strategy.on_event(event)   # user / Pine logic
+      broker.execute_pending()
+      recorder.record()          # P&L, equity, trades
+```
+
+Models (DB):
+- `Symbol` (name, exchange, type, pip_value, tick_size, fees)
+- `DataFeed` (source config: oanda account id, ibkr host:port, etc.)
+- `BacktestRun` (script id, params, symbol, timeframe, range, metrics json)
+- `Trade`, `Order`, `Position`
+- `ReplaySession` (date cursor, virtual cash, open trades, speed)
+- `PineScript` (name, source, version, compiled_cache)
+- `JournalEntry` (trade notes + screenshots during replay)
+
+---
+
+## 6. Data Pipeline
+
+| Source    | Method                          | Markets          | Granularity |
+|-----------|---------------------------------|------------------|-------------|
+| OANDA     | REST v20 + streaming            | Forex, CFDs      | tick → 1D   |
+| IBKR      | TWS API via `ib_insync`         | Stocks, Futures, Options, Forex | tick → 1D |
+| CCXT      | REST + WS                       | 100+ crypto ex.  | 1m → 1D (WS tick) |
+| Yahoo     | yfinance                        | Stocks/ETFs EOD  | 1m (intraday) / 1D |
+| Dukascopy | JForex data downloader          | Forex tick       | tick → 1D   |
+| CSV       | user upload                     | any              | any         |
+
+Data storage:
+- **Parquet**, partitioned: `data/market/{provider}/{symbol}/{timeframe}/{year}.parquet`
+- Each row: `timestamp, open, high, low, close, volume`
+- Append-only. Index on timestamp.
+- For replay: load window into memory as we go, lazy fetch next chunks.
+- Symbol registry in SQLite with metadata (pip, contract size, trading hours).
+
+---
+
+## 7. UI Layout (sketch)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚙ pw-backtest     Symbols ▾   Timeframe ▾   [Replay|Backtest|Live]  Account │
+├──────────┬───────────────────────────────────────────┬──────────┤
+│ Watchlist│                                           │ Positions│
+│ EUR/USD  │            CANDLESTICK CHART              │ Orders   │
+│ GBP/JPY  │      (multi-pane, indicators, drawings)   │ Journal  │
+│ BTC/USDT │                                           │ Trades   │
+│ AAPL     │                                           │          │
+│ SPX500   ├───────────────────────────────────────────┤          │
+│          │ Indicator sub-pane (RSI)                  │          │
+├──────────┼───────────────────────────────────────────┼──────────┤
+│ Scripts  │  ◀ ▶ ⏸ ⏩ ⏭  2024-03-15 09:30 UTC  ×1      │  Metrics │
+│ (Pine)   │  Buy  Sell  Pending  SL/TP   Journal +📷  │ Equity   │
+└──────────┴───────────────────────────────────────────┴──────────┘
+```
+
+Screens:
+1. **Chart/Replay** (default)
+2. **Strategy Editor** (Monaco Pine editor + backtest runner + results)
+3. **Backtest Results** (deep analysis: equity, drawdown, per-trade stats, heatmap)
+4. **Data Manager** (download backfills, connect brokers, import CSV)
+5. **Settings** (themes, keyboard shortcuts, broker accounts)
+
+Keyboard shortcuts (TradingView-like):
+- Space = play/pause replay
+- Ctrl+Z/Y undo/redo drawing
+- +/- change TF, arrows pan, wheel zoom, F11 fullscreen
+- B buy, S sell, X close position, T new trendline
+
+---
+
+## 8. Development Phases
+
+### Phase 0 — Setup (0.5 day)
+- [x] Monorepo scaffolding (backend FastAPI, frontend Vite/React/TS/Tailwind/shadcn)
+- [x] Fedora 44 setup script (`scripts/setup_fedora.sh`)
+- [x] SQLite + SQLAlchemy (async) — models auto-create on startup
+- [x] Dev server scripts (`scripts/run_dev.sh`)
+
+### Phase 1 — Data Layer (1–2 days)
+- [x] SQLite models + Parquet storage (`app/data/storage.py`)
+- [x] CCXT provider (Binance + any exchange) — OHLCV download w/ pagination
+- [x] Yahoo provider (stocks)
+- [x] OANDA provider (needs API key in `backend/.env`)
+- [x] IBKR provider via `ib_insync` (needs local TWS/Gateway)
+- [ ] CSV import
+- [ ] Backfill job UI: date range picker (basic "Load Data" button works)
+- [ ] Streaming WS (real-time)
+
+### Phase 2 — Chart (2–3 days)
+- [x] LightweightCharts React wrapper
+- [x] Symbol switch + timeframe switch
+- [x] Crosshair OHLC tooltip, pan, zoom
+- [x] Indicator overlay (lines on main chart)
+- [x] Sub-panes (RSI etc.) with synced time scale
+- [x] Theme: TradingView dark default
+- [x] Load historical bars from backend via HTTP (vite proxy)
+- [ ] Drawing tools (trendline, horizontal line, ray, rectangle, fib retracement)
+
+### Phase 3 — Replay / Manual Trading (3–4 days)
+- [x] Replay session API (create/list/get/advance) + DB model
+- [x] UI: playback controls, order ticket, positions panel
+- [x] Market order placement w/ SL/TP recorded
+- [ ] Bar-by-bar broker simulation (fills, SL/TP triggers, equity mark-to-market)
+- [ ] Chart shows only bars up to replay cursor (hiding the future)
+- [ ] Play mode with speed (auto-advance timer)
+- [ ] Visualize orders & positions on chart (lines, entry markers, P&L)
+- [ ] Journal: attach note + screenshot to trade; tag system
+- [ ] Trade statistics (win rate, avg win/loss)
+
+### Phase 4 — Pine Script Engine (BIG — 5–8 days, incremental)
+- [x] MVP compiler: `//@version`, `indicator()`, `plot()`, `input.*`, assignments, `ta.*` calls, colors
+- [x] Runtime on pandas/numpy: sma, ema, wma, rma, rsi, macd, bb, atr, stoch, highest, lowest
+- [x] Inline plots `plot(ta.sma(close, 20))` + multi-output (macd/bb → 3 lines each)
+- [x] Monaco editor w/ Pine syntax highlighting + compile diagnostics
+- [ ] Multi-script per chart, add/remove indicator UI
+- [ ] `strategy.*` builtins → hook into backtest engine
+- [ ] `ta.crossover/under`, `ta.valuewhen`, `ta.vwap`, `ta.supertrend`
+- [ ] `if/else`, `for`, `var` control flow
+- [ ] Python strategy API for edge cases
+
+### Phase 5 — Automated Backtest (2–3 days)
+- [ ] Backtest runner UI (pick script, symbol, TF, range, capital, fee model → run)
+- [ ] Equity curve, drawdown, monthly returns heatmap
+- [ ] Trade list with MAE/MFE, filterable
+- [ ] Metrics dashboard (Sharpe, Sortino, CAGR, MaxDD, Profit Factor, Expectancy …)
+- [ ] Walk-forward / simple optimization (grid params)
+- [ ] Export results to CSV/JSON, save backtest runs to DB
+
+### Phase 6 — Paper Trading & Live (2 days later)
+- [ ] Real-time WebSocket feed per symbol
+- [ ] Paper account with live prices
+- [ ] OANDA live execution (orders routed)
+- [ ] IBKR live execution
+- [ ] Desktop notifications
+
+### Phase 7 — Polish (ongoing)
+- [ ] Keyboard shortcut editor
+- [ ] Layout saving (multi-chart workspaces)
+- [ ] Screener (basic scans)
+- [ ] Monte Carlo resampling of trades
+- [ ] Documentation site (VitePress)
+
+---
+
+## 9. Fedora 44 Installation Outline
+
+```bash
+# System deps
+sudo dnf install -y python3.12 python3-pip python3-virtualenv \
+    nodejs npm pnpm \
+    ta-lib ta-lib-devel \
+    gcc gcc-c++ cmake \
+    rust cargo \
+    sqlite3 \
+    podman podman-compose  # optional
+
+# Backend
+cd backend
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (in another terminal)
+cd frontend
+pnpm install
+pnpm dev --port 5173
+
+# Optional: IBKR TWS Gateway for stocks/futures
+#   download from ibkr.com, run on 127.0.0.1:7497
+```
+
+A single `./scripts/setup_fedora.sh` + `./scripts/run_dev.sh` will automate the above.
+
+---
+
+## 10. Open Questions / Decisions to Confirm
+
+- **Do you want Docker/Podman deployment** or prefer native systemd/venv on Fedora? (My suggestion: native venv for dev, optional Podman later.)
+- **Pine compatibility target**: start with ~30 most-used indicators/built-ins and grow, vs. try full v5 from day one? (My suggestion: start small, grow.)
+- **Tick backtest or bar backtest default?** Tick is accurate for FX but data-heavy; bar is fast. (Suggestion: bar default with optional tick for focused strategies.)
+- **Do you need multiple user accounts or single-user forever?** (Suggestion: single-user, no auth complexity; simple token for localhost.)
+- **Theme**: TradingView dark as default? (Yes.)
+- **Screenshots in journal**: store as PNG in `data/screenshots/`? (Yes.)
+
+---
+
+## 11. First Step
+
+Approve or tweak this plan → I build the scaffolding (Phase 0) and Phase 1 immediately, so you have a running skeleton this session.

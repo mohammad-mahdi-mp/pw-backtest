@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+.next/
+.nuxt/
+.vite/
+*.log
+.pnpm-store/
+
+# Data / local
+data/db.sqlite3
+data/market/
+data/screenshots/
+*.parquet
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Env
+backend/.env
+frontend/tsconfig.tsbuildinfo

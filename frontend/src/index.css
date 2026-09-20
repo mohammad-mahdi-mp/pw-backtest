@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+
+:root {
+  --background: 222 14% 10%;
+  --foreground: 210 9% 85%;
+  --card: 225 11% 15%;
+  --card-foreground: 210 9% 85%;
+  --popover: 225 11% 13%;
+  --popover-foreground: 210 9% 85%;
+  --primary: 217 89% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 10% 22%;
+  --secondary-foreground: 210 9% 85%;
+  --muted: 222 10% 18%;
+  --muted-foreground: 215 8% 56%;
+  --accent: 217 89% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 10% 22%;
+  --input: 222 10% 20%;
+  --ring: 217 89% 60%;
+  --radius: 0.5rem;
+}
+
+* { border-color: hsl(var(--border)); }
+
+.chart-container { width: 100%; height: 100%; }
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
