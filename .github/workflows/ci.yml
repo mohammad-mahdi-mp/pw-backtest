@@ -8,6 +8,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   # Early rust gate (sandbox has no crates.io access, so GitHub Actions is the
   # verify environment for Rust until the full P0-T04 CI lands with Fedora
