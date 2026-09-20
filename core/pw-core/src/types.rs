@@ -138,7 +138,7 @@ pub enum TrailingKind {
 }
 
 /// A working or historical order (frozen contract §1.1).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Order {
     /// Monotonic engine-assigned id.
     pub id: u64,
@@ -169,7 +169,7 @@ pub struct Order {
 }
 
 /// An executed fill reported by the broker.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fill {
     /// Id of the order this fill belongs to.
     pub order_id: u64,

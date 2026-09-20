@@ -15,7 +15,7 @@ fn bar_json_field_names_are_contract_exact() {
     let bar = Bar { time: 1_700_000_000_000, open: 60_000.0, high: 60_100.0, low: 59_900.0, close: 60_050.0, volume: 12.5 };
     let v: Value = serde_json::to_value(&bar).expect("to value");
     let obj = v.as_object().expect("object");
-    let keys: Vec<_> = obj.keys().copied().collect();
+    let keys: Vec<&str> = obj.keys().map(String::as_str).collect();
     assert_eq!(keys, vec!["time", "open", "high", "low", "close", "volume"]);
 }
 
