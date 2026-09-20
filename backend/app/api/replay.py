@@ -414,7 +414,26 @@ async def place_order(session_id: int, payload: dict, db: AsyncSession = Depends
         fill_price = next(
             (e["price"] for e in broker.events if e["type"] == "order_filled"), None
         )
-        return {"id": order.id, "status": "filled", "fill_price": fill_price, "events": broker.events}
+
+        # optional live routing: mirror this manual paper order to OANDA
+        live_fill = None
+        live_error = None
+        if payload.get("route_live") and sess.mode == "paper":
+            from app.brokers.oanda_router import OandaRouter, OandaError  # local import: opt-in
+            units = size if side == "buy" else -size
+            try:
+                r = await asyncio.to_thread(
+                    OandaRouter().place_market_order,
+                    sess.symbol, units, order.stop_loss, order.take_profit,
+                )
+                live_fill = r
+            except OandaError as e:
+                live_error = str(e)
+
+        out = {"id": order.id, "status": "filled", "fill_price": fill_price, "events": broker.events}
+        if live_fill is not None or live_error is not None:
+            out["live"] = {"fill": live_fill, "error": live_error}
+        return out
 
     await db.commit()
     return {"id": order.id, "status": "pending", "events": []}

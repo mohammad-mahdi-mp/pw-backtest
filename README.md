@@ -15,10 +15,10 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | Phase | Component                       | Status         |
 |-------|---------------------------------|----------------|
 | 0     | Scaffolding (FastAPI + React)   | ✅ Done        |
-| 1     | Data layer (CCXT/Yahoo/OANDA/IBKR, parquet storage) | ✅ Working (CCXT/Yahoo live; OANDA/IBKR need keys/TWS) |
+| 1     | Data layer (CCXT/Yahoo/OANDA/IBKR, parquet storage) | ✅ Working — downloads with date range, CSV import (MT4/TV), WebSocket streaming (CCXT/Yahoo live; OANDA/IBKR routing needs keys/TWS) |
 | 2     | Charts (Lightweight Charts v4)  | ✅ Candlesticks + indicator overlays + synced sub-panes |
 | 3     | Replay / manual trading engine  | ✅ **Done** — full VirtualBroker: market/limit/stop fills, SL/TP auto-triggers, netting/flip, commissions, margin, P&L & equity |
-| 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
+| 4     | Pine Script engine              | ✅ Full expression parser, `if/else`/`for`/`var` control flow (indicators & strategies), history `close[k]`, `strategy.position_size`, Python strategy API as an alternative |
 | 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list with MAE/MFE, saved runs, grid & walk-forward optimizer, monthly heatmap, CSV/JSON export |
 | 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
 | 7     | Polish — drawings, screener, MC | ✅ **Done** — chart drawings, local-data screener, Monte Carlo, desktop notifications, multi-chart layouts, shortcut editor, layout persistence |

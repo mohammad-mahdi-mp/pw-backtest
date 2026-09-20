@@ -20,6 +20,12 @@ fast = input.int(10, "Fast")
 slow = input.int(30, "Slow")
 ```
 
+## Python strategies
+
+Scripts defining `class Strategy` with `on_bar(self, ctx)` run on the same
+broker engine in plain Python — see the [Pine reference](/guide/pine#python-strategies)
+for the API. The editor's Templates menu has a ready sample.
+
 ## Execution model
 
 - Signals are evaluated at **bar close**; orders queue and fill at the **next bar's open**

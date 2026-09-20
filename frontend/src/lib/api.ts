@@ -38,6 +38,39 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  importCsv: async (
+    file: File,
+    symbol: string,
+    timeframe: string,
+    preview = false
+  ): Promise<{
+    ok: boolean;
+    preview?: boolean;
+    saved?: number;
+    symbol?: string;
+    timeframe?: string;
+    meta?: {
+      rows: number; skipped: number; delimiter: string; header: boolean;
+      columns: Record<string, string>; start: string; end: string; suspect_ohlc_rows: number;
+    };
+    rows_head?: { time: string; open: number; high: number; low: number; close: number; volume: number }[];
+  }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("symbol", symbol);
+    fd.append("timeframe", timeframe);
+    fd.append("preview", String(preview));
+    const res = await fetch("/api/data/import", { method: "POST", body: fd });
+    if (!res.ok) {
+      const text = await res.text();
+      let detail = text;
+      try {
+        detail = JSON.parse(text).detail ?? text;
+      } catch { /* keep raw */ }
+      throw new Error(detail);
+    }
+    return res.json();
+  },
 
   // Replay
   createSession: (payload: any) =>

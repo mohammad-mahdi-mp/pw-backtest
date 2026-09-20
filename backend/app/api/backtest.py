@@ -15,6 +15,7 @@ from app.models.database import get_db
 from app.models.backtest_run import BacktestRun
 from app.pine.compiler import compile_pine
 from app.pine.strategy import run_strategy
+from app.pine.pystrategy import run_py_strategy
 
 router = APIRouter()
 
@@ -87,21 +88,40 @@ async def run_backtest(payload: dict, db: AsyncSession = Depends(get_db)) -> dic
     cash = payload.get("cash")
     leverage = int(payload.get("leverage", 100))
     inputs = payload.get("inputs") or None
+    engine = payload.get("engine")  # "pine" | "python" | None (auto)
 
     if not source.strip():
         return {"ok": False, "error": "Empty strategy source"}
 
+    # engine detection: explicit flag wins, else sniff the source
+    is_python = engine == "python" or (
+        engine is None
+        and "//@version" not in source
+        and "strategy(" not in source
+        and "indicator(" not in source
+        and ("class Strategy" in source or "def on_bar" in source)
+    )
+
     bars = _load_bars_or_400(symbol, timeframe, start, end)
 
     try:
-        result = run_strategy(
-            source, bars,
-            cash=float(cash) if cash else None,
-            leverage=leverage,
-            symbol=symbol,
-            timeframe=timeframe,
-            inputs=inputs,
-        )
+        if is_python:
+            result = run_py_strategy(
+                source, bars,
+                cash=float(cash) if cash else None,
+                leverage=leverage,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+        else:
+            result = run_strategy(
+                source, bars,
+                cash=float(cash) if cash else None,
+                leverage=leverage,
+                symbol=symbol,
+                timeframe=timeframe,
+                inputs=inputs,
+            )
     except ValueError as e:
         return {"ok": False, "error": str(e)}
     except SyntaxError as e:

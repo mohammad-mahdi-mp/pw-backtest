@@ -28,6 +28,7 @@ import { ShortcutsDialog } from "@/components/topbar/ShortcutsDialog";
 import { SymbolSearch } from "@/components/topbar/SymbolSearch";
 import { IndicatorsDialog } from "@/components/topbar/IndicatorsDialog";
 import { ScreenerDialog } from "@/components/topbar/ScreenerDialog";
+import { DataManagerDialog } from "@/components/topbar/DataManagerDialog";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -80,10 +81,7 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
   const [typeOpen, setTypeOpen] = useState(false);
   const [tfOpen, setTfOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const backfillMut = useMutation({ mutationFn: api.backfill });
+  const [dataMgrOpen, setDataMgrOpen] = useState(false);
 
   useEffect(() => {
     const h = () => setFullscreen(!!document.fullscreenElement);
@@ -94,22 +92,6 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
-  };
-
-  const handleBackfill = async () => {
-    setLoading(true);
-    setMsg(null);
-    try {
-      const provider = symbol.includes("/") ? "ccxt" : "yahoo";
-      const exchange = provider === "ccxt" ? "binance" : undefined;
-      const r = await backfillMut.mutateAsync({ symbol, timeframe, provider, exchange });
-      setMsg({ ok: true, text: `+${r.downloaded} candles` });
-    } catch (e: any) {
-      const m = (e?.message || "").match(/"detail":"([^"]+)"/);
-      setMsg({ ok: false, text: m ? m[1] : "Download failed" });
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -324,21 +306,15 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
           Screener
         </button>
 
-        {/* Load data (our custom, needed for downloads) */}
+        {/* Data manager: download with date range + CSV import */}
         <button
-          onClick={handleBackfill}
-          disabled={loading}
-          className="flex items-center gap-1.5 h-7 px-2 rounded text-[13px] text-[#d1d4dc] hover:bg-[#2a2e39] disabled:opacity-50"
-          title="Download historical data from provider"
+          onClick={() => setDataMgrOpen(true)}
+          className="flex items-center gap-1.5 h-7 px-2 rounded text-[13px] text-[#d1d4dc] hover:bg-[#2a2e39]"
+          title="Data Manager — download history with date range, import CSV"
         >
-          <Camera className={cn("w-4 h-4 text-[#787b86]", loading && "animate-pulse")} />
-          {loading ? "Loading…" : "Load Data"}
+          <Camera className="w-4 h-4 text-[#787b86]" />
+          Data
         </button>
-        {msg && (
-          <span className={cn("text-[11px] max-w-[260px] truncate", msg.ok ? "text-bull" : "text-bear")}>
-            {msg.text}
-          </span>
-        )}
 
         <div className="flex-1" />
 
@@ -419,6 +395,9 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
       <SymbolSearch open={symbolOpen} onClose={() => setSymbolOpen(false)} />
       <IndicatorsDialog open={indOpen} onClose={() => setIndOpen(false)} />
       <ScreenerDialog open={scrOpen} onClose={() => setScrOpen(false)} />
+      {dataMgrOpen && (
+        <DataManagerDialog symbol={symbol} timeframe={timeframe} onClose={() => setDataMgrOpen(false)} />
+      )}
       <ShortcutsDialog open={keysOpen} onClose={() => setKeysOpen(false)} />
     </>
   );

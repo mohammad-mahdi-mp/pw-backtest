@@ -17,6 +17,41 @@ GET  /api/data/bars?symbol=BTC/USDT&timeframe=1h&limit=2000
 POST /api/data/backfill           {"symbol","timeframe","provider":"ccxt|yahoo","exchange":"binance"}
 ```
 
+### CSV import — `POST /api/data/import`
+
+Multipart upload of an OHLCV CSV. Auto-detects the delimiter, header, column
+mapping (MT4/MT5 `<DATE>;<TIME>` split columns, TradingView `Date (UTC)`,
+generic) and the timestamp format (unix s/ms, ISO 8601, `2026.01.02 09:30`).
+`preview=true` validates and returns the parsed meta + first rows without
+writing. On success the bars are saved to parquet and the symbol is registered.
+
+## WebSocket prices — `/api/ws/prices`
+
+```
+connect → {"action": "sub", "symbols": ["BTC/USDT"]}
+       ← {"type": "batch", "prices": [{"symbol","price","ts","change_pct","source"}]}
+       → {"action": "unsub", "symbols": [...]}
+```
+
+The server polls Binance/Yahoo ~1.2 s per subscribed symbol and pushes batched
+frames (`source: "live"`); when providers are unreachable it falls back to the
+last stored close (`source: "stored"`).
+
+## Live brokers — `/api/brokers`
+
+```
+GET  /api/brokers/status
+GET  /api/brokers/oanda/account
+POST /api/brokers/oanda/order   {"symbol","units" (neg = sell),"stop","target"}
+POST /api/brokers/oanda/close   {"symbol"}
+GET  /api/brokers/ibkr/account
+POST /api/brokers/ibkr/order    {"symbol","quantity","side"}
+```
+
+Credential-gated: OANDA needs `OANDA_API_KEY`/`OANDA_ACCOUNT_ID` in
+`backend/.env`, IBKR needs TWS/IB Gateway running with API access. Paper
+orders can be mirrored live with `route_live: true` on the order placement.
+
 ## Replay sessions (also used by paper sessions)
 
 ```
@@ -45,7 +80,12 @@ background heartbeat every 20s.
 ## Backtesting
 
 ```
-POST /api/backtest/run       {"source","symbol","timeframe","cash","leverage","inputs"}
+POST /api/backtest/run       {"source","symbol","timeframe","cash","leverage","inputs","engine"}
+```
+
+`source` may be a Pine `strategy()` script **or** a Python strategy
+(`class Strategy` with `on_bar(self, ctx)` — detected automatically, or force
+with `"engine": "python"`). See the [backtest guide](/guide/backtest).
 POST /api/backtest/optimize  {"source","symbol","timeframe","cash","leverage","grid","metric","mode","train_bars","test_bars"}
 GET  /api/backtest/runs
 GET  /api/backtest/runs/{id}

@@ -49,6 +49,17 @@ Open `http://localhost:5173` in your browser.
 4. Explore the **Screener** (local scan of every stored symbol) and the 🎲 **Monte Carlo**
    view in the Backtest tab.
 
+## Data Manager
+
+The **Data** button in the top bar opens the Data Manager:
+
+- **Download history** — fetch OHLCV from Binance (crypto) or Yahoo (stocks & FX)
+  for any symbol/timeframe, optionally restricted to a date range.
+- **Import CSV** — bring your own MT4/MT5 or TradingView export. The importer
+  auto-detects the delimiter, header columns and timestamp format (unix
+  seconds/milliseconds, ISO 8601, MT4 `2026.01.02 09:30`), shows what it found,
+  and saves the bars so charts and backtests see them immediately.
+
 ## Where your data lives
 
 | Path | Contents |

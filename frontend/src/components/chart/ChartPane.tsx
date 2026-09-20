@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePriceStream, isLiveEdge } from "@/lib/usePriceStream";
 import { ChartPanel } from "@/components/chart/ChartPanel";
 import type { PaneConfig } from "@/stores/layout";
 import { useUIStore, type ActiveIndicator } from "@/stores/ui";
@@ -59,6 +60,29 @@ export function ChartPane({
     if (!replayActive || !replayTime || !isSessionPane) return bars;
     return bars.filter((b) => b.time <= replayTime);
   }, [bars, replayActive, replayTime, isSessionPane]);
+
+  // ---------- live price stream (websocket) ----------
+  // when the last bar is fresh and we're not replaying, patch it with live ticks
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const lastVisible = visibleBars[visibleBars.length - 1];
+  const wantLive = !replayActive && !!lastVisible && isLiveEdge(lastVisible.time, timeframe);
+  const streamSymbols = useMemo(() => (wantLive ? [symbol] : []), [wantLive, symbol]);
+  const streamHandlers = useMemo(
+    () => ({ [symbol]: (t: { price: number }) => setLivePrice(t.price) }),
+    [symbol]
+  );
+  usePriceStream(streamSymbols, streamHandlers);
+  const liveBars = useMemo(() => {
+    if (!wantLive || livePrice == null || !visibleBars.length) return visibleBars;
+    const out = visibleBars.slice();
+    const last = { ...out[out.length - 1] };
+    last.close = livePrice;
+    last.high = Math.max(last.high, livePrice);
+    last.low = Math.min(last.low, livePrice);
+    out[out.length - 1] = last;
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleBars, livePrice, wantLive]);
 
   const barsKey = `${symbol}|${timeframe}|${visibleBars.length}|${visibleBars[visibleBars.length - 1]?.time ?? 0}`;
 
@@ -206,7 +230,7 @@ export function ChartPane({
           chartType={pane.chartType}
           showVolume={pane.showVolume}
           autoScroll={replayActive || (paperActive && isSessionPane)}
-          bars={visibleBars}
+          bars={liveBars}
           overlays={overlays}
           panes={subPanes}
           indicators={pane.indicators}

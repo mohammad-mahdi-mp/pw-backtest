@@ -18,7 +18,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from app.pine.compiler import compile_pine
-from app.pine.runtime import bars_to_df, eval_expr
+from app.pine.runtime import bars_to_df, eval_expr, eval_scalar, _is_stateful, _ast_ids
 from app.replay.engine import PendingOrder, VirtualBroker
 from app.replay.markets import get_market_config
 from app.backtest.metrics import compute_metrics
@@ -35,6 +35,18 @@ def _scalar_at(v: Any, i: int) -> Any:
     if isinstance(v, (int, float, bool)):
         return float(v)
     return v  # string
+
+
+_SCALAR_CONST_IDS = {"strategy.long", "strategy.short", "strategy.percent_of_equity",
+                     "strategy.fixed", "strategy.cash", "true", "false", "na"}
+
+
+def _needs_scalar(ast: dict, state_names: set[str]) -> bool:
+    """True if the expression must be evaluated per-bar (state vars / runtime broker ids)."""
+    ids = _ast_ids(ast)
+    if ids & state_names:
+        return True
+    return any(i.startswith("strategy.") and i not in _SCALAR_CONST_IDS for i in ids)
 
 
 def run_strategy(
@@ -71,23 +83,76 @@ def run_strategy(
                 override[k] = v
 
     # ---- phase 1: vectorized precompute (assignments + if conditions) ----
+    # Expressions touching control-flow state vars or broker state
+    # (strategy.position_size) are deferred to the bar loop (phase 2).
+    state_names: set[str] = set(ir.get("state_vars", []))
+    n = len(df)
+
+    def _prep_call(call: dict) -> None:
+        """Precompute call args; stateful ones stay as ASTs for per-bar eval."""
+        spec: list = []
+        for a in call["args"]:
+            if _needs_scalar(a, state_names):
+                spec.append(("s", a))
+            else:
+                spec.append(("v", eval_expr(a, df, env)))
+        call["_args_v"] = spec
+        kwspec: dict = {}
+        for k_, v in call["kwargs"].items():
+            kwspec[k_] = ("s", v) if _needs_scalar(v, state_names) else ("v", eval_expr(v, df, env))
+        call["_kw_v"] = kwspec
+
+    def _prep_block(stmts: list[dict]) -> None:
+        for s in stmts:
+            k = s.get("kind")
+            if k == "strategy_call":
+                _prep_call(s)
+            elif k == "if":
+                if _needs_scalar(s["cond"], state_names):
+                    s["_cond_scalar"] = True
+                else:
+                    cond = eval_expr(s["cond"], df, env)
+                    s["_cond"] = cond.fillna(False).astype(bool) if isinstance(cond, pd.Series) else cond
+                _prep_block(s["body"])
+                for e in s.get("elifs", []):
+                    if _needs_scalar(e["cond"], state_names):
+                        e["_cond_scalar"] = True
+                    else:
+                        c = eval_expr(e["cond"], df, env)
+                        e["_cond"] = c.fillna(False).astype(bool) if isinstance(c, pd.Series) else c
+                    _prep_block(e["body"])
+                _prep_block(s.get("else_body", []) or [])
+
     for st in ir["statements"]:
         if st["kind"] == "assign":
             if st["name"] in override:
                 # input declaration with caller-supplied value — keep the override
                 env[st["name"]] = override[st["name"]]
                 continue
-            env[st["name"]] = eval_expr(st["expr"], df, env)
+            if st.get("reassign") or _needs_scalar(st["expr"], state_names):
+                st["_per_bar"] = True
+            else:
+                env[st["name"]] = eval_expr(st["expr"], df, env)
         elif st["kind"] == "if":
-            cond = eval_expr(st["cond"], df, env)
-            st["_cond"] = cond.fillna(False).astype(bool) if isinstance(cond, pd.Series) else cond
-            for call in st["body"]:
-                if call["kind"] == "strategy_call":
-                    call["_args"] = [eval_expr(a, df, env) for a in call["args"]]
-                    call["_kw"] = {k: eval_expr(v, df, env) for k, v in call["kwargs"].items()}
+            if _needs_scalar(st["cond"], state_names):
+                st["_cond_scalar"] = True
+            else:
+                cond = eval_expr(st["cond"], df, env)
+                st["_cond"] = cond.fillna(False).astype(bool) if isinstance(cond, pd.Series) else cond
+            _prep_block(st["body"])
+            for e in st.get("elifs", []):
+                if _needs_scalar(e["cond"], state_names):
+                    e["_cond_scalar"] = True
+                else:
+                    c = eval_expr(e["cond"], df, env)
+                    e["_cond"] = c.fillna(False).astype(bool) if isinstance(c, pd.Series) else c
+                _prep_block(e["body"])
+            _prep_block(st.get("else_body", []) or [])
         elif st["kind"] == "strategy_call":
-            st["_args"] = [eval_expr(a, df, env) for a in st["args"]]
-            st["_kw"] = {k: eval_expr(v, df, env) for k, v in st["kwargs"].items()}
+            _prep_call(st)
+        elif st["kind"] == "for":
+            _prep_block(st["body"])
+        # var_decl: initialized in phase 2
 
     # ---- phase 2: bar-by-bar simulation ----
     broker = VirtualBroker(cfg, initial, leverage)
@@ -100,10 +165,54 @@ def run_strategy(
     queued: list[PendingOrder] = []
     equity_curve: list[dict] = []
 
-    def process_call(call: dict, i: int) -> None:
+    # per-bar state for var / control-flow assigns
+    arrays: dict[str, list] = {name: [None] * n for name in state_names}
+
+    def hist_at(name: str, k: int, i: int):
+        j = i - k
+        if name in arrays:
+            if j < 0:
+                return None
+            v = arrays[name][j]
+            return 0 if v is None else v
+        if name in df.columns:
+            if j < 0:
+                return None
+            v = df[name].iloc[j]
+            return None if pd.isna(v) else float(v)
+        if name in env:
+            v = env[name]
+            if isinstance(v, pd.Series):
+                if j < 0:
+                    return None
+                s = v.iloc[j]
+                return None if pd.isna(s) else float(s)
+            return v
+        return None
+
+    def build_scope(i: int, extra: dict | None = None) -> dict:
+        scope: dict[str, Any] = {}
+        for name, v in env.items():
+            scope[name] = _scalar_at(v, i) if isinstance(v, pd.Series) else v
+        for c in ("open", "high", "low", "close", "volume"):
+            scope[c] = float(df[c].iloc[i])
+        for name in arrays:
+            if extra and name in extra:
+                continue
+            v = arrays[name][i]
+            scope[name] = 0 if v is None else v
+        p = broker.position
+        scope["strategy.position_size"] = 0.0 if not p else (p.size if p.side == "long" else -p.size)
+        if extra:
+            scope.update(extra)
+        return scope
+
+    def process_call(call: dict, i: int, scope: dict, prev: dict) -> None:
         action = call["action"]
-        args = call.get("_args", [])
-        kw = call.get("_kw", {})
+        args = [v if kind == "v" else eval_scalar(v, scope, prev, lambda nm, kk: hist_at(nm, kk, i))
+                for kind, v in call.get("_args_v", [])]
+        kw = {k_: (v if kind == "v" else eval_scalar(v, scope, prev, lambda nm, kk: hist_at(nm, kk, i)))
+              for k_, (kind, v) in call.get("_kw_v", {}).items()}
         pos = broker.position
 
         if action == "entry":
@@ -148,7 +257,45 @@ def run_strategy(
             queued.clear()
             broker.pending.clear()
 
-    n = len(df)
+    def cond_true(node: dict, i: int, scope: dict, prev: dict) -> bool:
+        if node.get("_cond_scalar"):
+            return bool(eval_scalar(node["cond"], scope, prev, lambda nm, kk: hist_at(nm, kk, i)))
+        c = node["_cond"]
+        return bool(c.iloc[i]) if isinstance(c, pd.Series) else bool(c)
+
+    def exec_block(stmts: list[dict], i: int, prev: dict, extra: dict | None = None) -> None:
+        for s in stmts:
+            k = s.get("kind")
+            scope = build_scope(i, extra)  # fresh: reflects writes from earlier statements
+            if k == "strategy_call":
+                process_call(s, i, scope, prev)
+            elif k == "assign":
+                if s["name"] not in arrays:
+                    arrays[s["name"]] = [None] * n
+                arrays[s["name"]][i] = eval_scalar(s["expr"], scope, prev, lambda nm, kk: hist_at(nm, kk, i))
+            elif k == "if":
+                if cond_true(s, i, scope, prev):
+                    exec_block(s["body"], i, prev, extra)
+                else:
+                    for e in s.get("elifs", []):
+                        if cond_true(e, i, scope, prev):
+                            exec_block(e["body"], i, prev, extra)
+                            break
+                    else:
+                        if s.get("else_body"):
+                            exec_block(s["else_body"], i, prev, extra)
+            elif k == "for":
+                scope0 = build_scope(i, extra)
+                a = int(eval_scalar(s["from"], scope0, prev, lambda nm, kk: hist_at(nm, kk, i)))
+                bnd = int(eval_scalar(s["to"], scope0, prev, lambda nm, kk: hist_at(nm, kk, i)))
+                by = int(eval_scalar(s["by"], scope0, prev, lambda nm, kk: hist_at(nm, kk, i))) if s.get("by") else None
+                step = by if by is not None else (1 if a <= bnd else -1)
+                for j in range(a, bnd + (1 if step > 0 else -1), step):
+                    exec_block(s["body"], i, prev, {**(extra or {}), s["var"]: j})
+            elif k in ("break", "continue"):
+                return  # no-op at strategy block level
+
+    prev_scope: dict = {}
     for i in range(n):
         bar = {"time": int(times[i].timestamp()), "open": opens[i], "high": highs[i],
                "low": lows[i], "close": closes[i], "volume": 0}
@@ -160,18 +307,33 @@ def run_strategy(
         else:
             broker.on_bar(bar)
 
+        # carry control-flow state forward
+        for name in arrays:
+            if i > 0 and arrays[name][i] is None:
+                arrays[name][i] = arrays[name][i - 1]
+
         # 2) evaluate signals at this bar's close (next bar open execution)
+        scope = build_scope(i)
+        prev_eff = prev_scope if prev_scope else scope  # bar 0: no history yet
         for st in ir["statements"]:
             k = st["kind"]
             if k == "if":
-                c = st["_cond"]
-                hit = bool(c.iloc[i]) if isinstance(c, pd.Series) else bool(c)
-                if hit:
-                    for call in st["body"]:
-                        if call["kind"] == "strategy_call":
-                            process_call(call, i)
+                exec_block([st], i, prev_eff)
             elif k == "strategy_call":
-                process_call(st, i)
+                process_call(st, i, build_scope(i), prev_eff)
+            elif k == "var_decl":
+                if i == 0:
+                    if st["name"] not in arrays:
+                        arrays[st["name"]] = [None] * n
+                    arrays[st["name"]][0] = eval_scalar(st["expr"], build_scope(0), build_scope(0), lambda nm, kk: hist_at(nm, kk, 0))
+            elif k == "assign":
+                if st.get("_per_bar"):
+                    if st["name"] not in arrays:
+                        arrays[st["name"]] = [None] * n
+                    arrays[st["name"]][i] = eval_scalar(st["expr"], build_scope(i), prev_eff, lambda nm, kk: hist_at(nm, kk, i))
+            elif k == "for":
+                exec_block([st], i, prev_eff)
+        prev_scope = build_scope(i)
 
         # 3) mark equity at close
         equity_curve.append({"time": bar["time"], "value": broker.equity(closes[i])})

@@ -304,9 +304,11 @@ Keyboard shortcuts (TradingView-like):
 - [x] Yahoo provider (stocks)
 - [x] OANDA provider (needs API key in `backend/.env`)
 - [x] IBKR provider via `ib_insync` (needs local TWS/Gateway)
-- [ ] CSV import
-- [ ] Backfill job UI: date range picker (basic "Load Data" button works)
-- [ ] Streaming WS (real-time)
+- [x] CSV import — `POST /api/data/import` (MT4/MT5, TradingView, generic; delimiter +
+      timestamp auto-detection incl. split date+time columns), Data Manager dialog in the top bar
+- [x] Backfill job UI: date range picker — Data Manager dialog (from/to dates + symbol/TF)
+- [x] Streaming WS (real-time) — `/api/ws/prices` hub (Binance/Yahoo poll → push,
+      stored-data fallback offline), frontend `usePriceStream` live-patches the last candle
 
 ### Phase 2 — Chart (2–3 days)
 - [x] LightweightCharts React wrapper
@@ -349,8 +351,13 @@ Keyboard shortcuts (TradingView-like):
       pyramiding=0, percent-of-equity & fixed sizing, `initial_capital` /
       `default_qty_type` / `default_qty_value` params
 - [x] Indicator UI: built-in library dialog + removable legend chips
-- [ ] `if/else`, `for`, `var` control flow in indicator context (strategy bodies done)
-- [ ] Python strategy API for edge cases
+- [x] `if/else`, `for`, `var` control flow — full bar-by-bar interpreter for indicators AND
+      strategies (var state carries, `:=` reassign, elif/else chains, for loops with `by`,
+      history access `close[k]`, `strategy.position_size`)
+- [x] Python strategy API for edge cases — `app/pine/pystrategy.py`: `class Strategy` with
+      `init/on_bar(ctx)`, precomputed sma/ema/rsi/atr/highest/lowest, cross_over/cross_under,
+      buy/sell(qty, qty_pct, stop, target) auto-reversal, close_position, set_stop/target;
+      same VirtualBroker engine; auto-detected by /api/backtest/run, Pine editor has templates
 
 ### Phase 5 — Automated Backtest (2–3 days)
 - [x] Backtest runner UI (Backtest bottom-panel: script from Pine Editor or sample template,
@@ -383,9 +390,14 @@ Keyboard shortcuts (TradingView-like):
 - [x] `POST /api/paper/start|stop`, `GET /api/paper/sessions`; stopped sessions refuse orders
 - [x] Desktop notifications — browser Notification API on paper fills/stop-outs while the
       tab is hidden (permission requested on first Paper start)
-- [ ] Real-time WebSocket feed per symbol (polling for now — 1.5s UI / 20s background)
-- [ ] OANDA live execution (orders routed) — needs API key
-- [ ] IBKR live execution — needs TWS gateway
+- [x] Real-time WebSocket feed per symbol — `/api/ws/prices` (subscribe/unsub per symbol,
+      batched frames, reconnecting client with backoff, offline fallback to stored closes)
+- [x] OANDA live execution — `app/brokers/oanda_router.py` (REST v3: market orders with SL/TP,
+      close, positions, account) + `/api/brokers/*` endpoints + optional `route_live` flag on
+      paper order placement. **Needs OANDA_API_KEY / OANDA_ACCOUNT_ID in backend/.env to activate**
+- [x] IBKR live execution — `app/brokers/ibkr_router.py` (ib_insync: connect, market orders,
+      positions, account summary) + `/api/brokers/ibkr/*`. **Needs TWS/IB Gateway running
+      with API access enabled to activate**
 
 ### Phase 7 — Polish (ongoing)
 - [x] **Chart drawings**: trend line, ray, horizontal line, rectangle, Fibonacci retracement —

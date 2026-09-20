@@ -27,7 +27,7 @@ _TOKEN_RE = re.compile(
     | (?P<NUM>\d+\.\d+|\.\d+|\d+)
     | (?P<STR>"[^"]*")
     | (?P<ID>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)
-    | (?P<OP>>=|<=|==|!=|\?|:|>|<|\+|-|\*|/|\(|\)|,|=)
+    | (?P<OP>>=|<=|==|!=|:=|\?|:|>|<|\+|-|\*|/|\(|\)|,|=|\[|\])
     """,
     re.VERBOSE,
 )
@@ -141,20 +141,29 @@ class _Parser:
         if not t:
             raise SyntaxError("Unexpected end of expression")
         if t["k"] == "NUM":
-            return {"t": "num", "v": float(t["v"])}
-        if t["k"] == "STR":
-            return {"t": "str", "v": t["v"][1:-1]}
-        if t["k"] == "ID":
+            node: dict = {"t": "num", "v": float(t["v"])}
+        elif t["k"] == "STR":
+            node = {"t": "str", "v": t["v"][1:-1]}
+        elif t["k"] == "ID":
             if self.peek() and self.peek()["v"] == "(":
                 self.next()
                 args, kwargs = self.parse_call_args()
-                return {"t": "call", "fn": t["v"], "args": args, "kwargs": kwargs}
-            return {"t": "id", "v": t["v"]}
-        if t["v"] == "(":
+                node = {"t": "call", "fn": t["v"], "args": args, "kwargs": kwargs}
+            else:
+                node = {"t": "id", "v": t["v"]}
+        elif t["v"] == "(":
             e = self.parse_expr()
             self.expect(")")
-            return e
-        raise SyntaxError(f"Unexpected token {t['v']!r}")
+            node = e
+        else:
+            raise SyntaxError(f"Unexpected token {t['v']!r}")
+        # history access: close[1], myvar[j]
+        while self.peek() and self.peek()["v"] == "[":
+            self.next()
+            k = self.parse_expr()
+            self.expect("]")
+            node = {"t": "hist", "x": node, "k": k}
+        return node
 
     def parse_call_args(self):
         args: list[dict] = []
@@ -316,6 +325,156 @@ def _parse_strategy_call(txt: str, line_no: int) -> dict:
 
 # ---------------------------------------------------------------- compiler
 
+_VAR_RE = re.compile(
+    r"^var\s+(?:(?:int|float|bool|string|color|simple|const|series)\s+)*([A-Za-z_]\w*)\s*=\s*(.+)$"
+)
+_FOR_RE = re.compile(r"^for\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s+to\s+(.+?)(?:\s+by\s+(.+))?$")
+_TYPE_KWS = ("int", "float", "bool", "string", "color", "line", "label", "box", "table")
+_IR_CTX: dict = {"ir": None}
+
+
+def _parse_body(lines: list[dict], i: int, ind: int) -> tuple[list[dict], int]:
+    """Parse an indented block (all consecutive lines with indent > ind) into statements."""
+    stmts: list[dict] = []
+    while i < len(lines) and lines[i]["indent"] > ind:
+        st, i = _parse_stmt(lines, i, lines[i]["indent"], in_block=True)
+        if st:
+            stmts.append(st)
+    return stmts, i
+
+
+def _parse_if(lines: list[dict], i: int, ind: int, cond_src: str) -> tuple[dict, int]:
+    cond = parse_expr_src(cond_src)
+    body, j = _parse_body(lines, i + 1, ind)
+    node: dict = {"kind": "if", "cond": cond, "body": body, "elifs": [], "else_body": [], "line": lines[i]["no"]}
+    while j < len(lines) and lines[j]["indent"] == ind and lines[j]["text"].startswith("else"):
+        t = lines[j]["text"]
+        if t == "else":
+            node["else_body"], j = _parse_body(lines, j + 1, ind)
+            break
+        m = re.match(r"^else\s+if\s+(.+)$", t) or re.match(r"^elseif\s+(.+)$", t)
+        if not m:
+            raise SyntaxError(f"Malformed else clause at line {lines[j]['no']}: {t[:60]}")
+        c2 = parse_expr_src(m.group(1))
+        b2, j = _parse_body(lines, j + 1, ind)
+        node["elifs"].append({"cond": c2, "body": b2})
+    return node, j
+
+
+def _parse_stmt(lines: list[dict], i: int, ind: int, in_block: bool = False) -> tuple[Optional[dict], int]:
+    """Parse one statement at lines[i]. Returns (stmt|None, next_i)."""
+    L = lines[i]
+    txt = L["text"]
+    ir = _IR_CTX["ir"]
+
+    m_decl = re.match(r"^(indicator|strategy)\s*\((.*)\)$", txt)
+    if m_decl:
+        if in_block:
+            raise SyntaxError(f"Declaration must be at top level, line {L['no']}")
+        ir["kind"] = m_decl.group(1)
+        _parse_decl(m_decl.group(2), ir)
+        return None, i + 1
+
+    if txt.startswith("plot(") and txt.endswith(")"):
+        if in_block:
+            raise SyntaxError(f"plot() only allowed at top level, line {L['no']}")
+        p = _Parser(tokenize(txt[5:-1]))
+        args, kwargs = p.parse_call_args()
+        src_ast = args[0] if args else {"t": "id", "v": "close"}
+        title = ""
+        if "title" in kwargs and kwargs["title"]["t"] == "str":
+            title = kwargs["title"]["v"]
+        color = "#2962FF"
+        if "color" in kwargs and kwargs["color"]["t"] == "id":
+            color = kwargs["color"]["v"]
+        elif "color" in kwargs and kwargs["color"]["t"] == "str":
+            color = kwargs["color"]["v"]
+        return (
+            {"kind": "plot", "expr": src_ast, "title": title, "color": color,
+             "src": txt[5:-1].split(",")[0].strip(), "line": L["no"]},
+            i + 1,
+        )
+
+    # if / else-if / else
+    if txt == "if" or txt.startswith("if ") or txt.startswith("if("):
+        cond_src = (txt[2:].strip() if txt.startswith("if(") else txt[3:].strip()).strip()
+        if cond_src.startswith("(") and cond_src.endswith(")"):
+            cond_src = cond_src[1:-1]
+        if not cond_src:
+            raise SyntaxError(f"Missing condition after 'if' at line {L['no']}")
+        return _parse_if(lines, i, ind, cond_src)
+
+    # for i = a to b [by c]
+    m_for = _FOR_RE.match(txt)
+    if m_for:
+        node = {
+            "kind": "for",
+            "var": m_for.group(1),
+            "from": parse_expr_src(m_for.group(2)),
+            "to": parse_expr_src(m_for.group(3)),
+            "by": parse_expr_src(m_for.group(4)) if m_for.group(4) else None,
+            "body": [],
+            "line": L["no"],
+        }
+        node["body"], j = _parse_body(lines, i + 1, ind)
+        if not node["body"]:
+            raise SyntaxError(f"Empty for-block at line {L['no']}")
+        return node, j
+
+    # var x = init
+    m_var = _VAR_RE.match(txt)
+    if m_var:
+        if in_block:
+            raise SyntaxError(f"var declaration must be at top level, line {L['no']}")
+        return (
+            {"kind": "var_decl", "name": m_var.group(1),
+             "expr": parse_expr_src(m_var.group(2)), "line": L["no"]},
+            i + 1,
+        )
+
+    if txt in ("break", "continue"):
+        return ({"kind": txt, "line": L["no"]}, i + 1)
+
+    if txt.startswith("strategy."):
+        return (_parse_strategy_call(txt, L["no"]), i + 1)
+
+    # reassignment x := expr
+    m_reassign = re.match(r"^([A-Za-z_]\w*)\s*:=\s*(.+)$", txt)
+    if m_reassign:
+        return (
+            {"kind": "assign", "name": m_reassign.group(1),
+             "expr": parse_expr_src(m_reassign.group(2)), "reassign": True, "line": L["no"]},
+            i + 1,
+        )
+
+    # typed declaration: float x = ... / int x = ...
+    m_typed = re.match(rf"^({'|'.join(_TYPE_KWS)})\s+([A-Za-z_]\w*)\s*=\s*(.+)$", txt)
+    if m_typed and not in_block:
+        return (
+            {"kind": "assign", "name": m_typed.group(2),
+             "expr": parse_expr_src(m_typed.group(3)), "line": L["no"]},
+            i + 1,
+        )
+
+    # plain assignment x = expr
+    m_assign = re.match(r"^([A-Za-z_]\w*)\s*=(?!=)\s*(.+)$", txt)
+    if m_assign:
+        name, rhs = m_assign.group(1), m_assign.group(2).strip()
+        if rhs.startswith("input.") and rhs.endswith(")") and not in_block:
+            _parse_input(name, rhs[rhs.find("(") + 1: -1], ir)
+            return (
+                {"kind": "assign", "name": name,
+                 "expr": parse_expr_src(str(ir["inputs"][-1]["default"])), "line": L["no"]},
+                i + 1,
+            )
+        return (
+            {"kind": "assign", "name": name, "expr": parse_expr_src(rhs), "line": L["no"]},
+            i + 1,
+        )
+
+    # unknown statement — skip gracefully
+    return None, i + 1
+
 
 def compile_pine(source: str) -> dict:
     version_m = re.search(r"//@version=(\d+)", source)
@@ -337,79 +496,37 @@ def compile_pine(source: str) -> dict:
     }
 
     lines = _logical_lines(source)
+    _IR_CTX["ir"] = ir
     i = 0
     while i < len(lines):
-        L = lines[i]
-        txt, ind = L["text"], L["indent"]
-
-        m_decl = re.match(r"^(indicator|strategy)\s*\((.*)\)$", txt)
-        if m_decl:
-            ir["kind"] = m_decl.group(1)
-            _parse_decl(m_decl.group(2), ir)
-            i += 1
-            continue
-
-        if txt.startswith("plot(") and txt.endswith(")"):
-            p = _Parser(tokenize(txt[5:-1]))
-            args, kwargs = p.parse_call_args()
-            src_ast = args[0] if args else {"t": "id", "v": "close"}
-            title = ""
-            if "title" in kwargs and kwargs["title"]["t"] == "str":
-                title = kwargs["title"]["v"]
-            color = "#2962FF"
-            if "color" in kwargs and kwargs["color"]["t"] == "id":
-                color = kwargs["color"]["v"]
-            elif "color" in kwargs and kwargs["color"]["t"] == "str":
-                color = kwargs["color"]["v"]
-            st = {"kind": "plot", "expr": src_ast, "title": title, "color": color,
-                  "src": txt[5:-1].split(",")[0].strip(), "line": L["no"]}
+        st, i = _parse_stmt(lines, i, lines[i]["indent"], in_block=False)
+        if st:
             ir["statements"].append(st)
-            ir["plots"].append({"title": title, "color": color})
-            i += 1
-            continue
+            if st["kind"] == "plot":
+                ir["plots"].append({"title": st["title"], "color": st["color"]})
 
-        if txt.startswith("if") and (len(txt) == 2 or txt[2] in " ("):
-            cond_src = txt[2:].strip()
-            if cond_src.startswith("(") and cond_src.endswith(")"):
-                cond_src = cond_src[1:-1]
-            cond = parse_expr_src(cond_src)
-            body: list[dict] = []
-            j = i + 1
-            while j < len(lines) and lines[j]["indent"] > ind:
-                b = lines[j]["text"]
-                if b.startswith("strategy."):
-                    body.append(_parse_strategy_call(b, lines[j]["no"]))
-                elif b.startswith("else"):
-                    body.append({"kind": "noop"})
-                else:
-                    body.append({"kind": "noop"})  # unsupported in-body line
-                j += 1
-            ir["statements"].append({"kind": "if", "cond": cond, "body": body, "line": L["no"]})
-            i = j
-            continue
+    # second pass: precompute which names are control-flow "state" variables
+    state: set[str] = set()
+    for st in ir["statements"]:
+        if st.get("kind") == "var_decl":
+            state.add(st["name"])
+        elif st.get("kind") == "assign" and st.get("reassign"):
+            state.add(st["name"])
 
-        if txt.startswith("strategy."):
-            ir["statements"].append(_parse_strategy_call(txt, L["no"]))
-            i += 1
-            continue
+    def _collect_writes(stmts: list[dict], in_body: bool = False) -> None:
+        for s in stmts:
+            k = s.get("kind")
+            if k == "assign" and in_body:
+                state.add(s["name"])
+            elif k == "if":
+                _collect_writes(s["body"], True)
+                for e in s.get("elifs", []):
+                    _collect_writes(e["body"], True)
+                _collect_writes(s.get("else_body", []) or [], True)
+            elif k == "for":
+                state.discard(s["var"])  # loop counter — scoped, not persistent state
+                _collect_writes(s["body"], True)
 
-        m_assign = re.match(r"^([A-Za-z_]\w*)\s*=(?!=)\s*(.+)$", txt)
-        if m_assign:
-            name, rhs = m_assign.group(1), m_assign.group(2).strip()
-            if rhs.startswith("input.") and rhs.endswith(")"):
-                _parse_input(name, rhs[rhs.find("(") + 1: -1], ir)
-                ir["statements"].append(
-                    {"kind": "assign", "name": name,
-                     "expr": parse_expr_src(str(ir["inputs"][-1]["default"])), "line": L["no"]}
-                )
-            else:
-                ir["statements"].append(
-                    {"kind": "assign", "name": name, "expr": parse_expr_src(rhs), "line": L["no"]}
-                )
-            i += 1
-            continue
-
-        # unknown statement — skip gracefully
-        i += 1
-
+    _collect_writes(ir["statements"])
+    ir["state_vars"] = sorted(state)
     return ir

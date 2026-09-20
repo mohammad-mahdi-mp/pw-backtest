@@ -1,10 +1,10 @@
-"""Data API: symbols, historical bars, backfill, provider status."""
+"""Data API: symbols, historical bars, backfill, CSV import, provider status."""
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,7 @@ from app.models.database import get_db
 from app.models.symbol import Symbol
 from app.data.storage import load_bars, save_bars
 from app.data.downloader import backfill
+from app.data.csv_import import parse_ohlcv_csv
 
 router = APIRouter()
 
@@ -74,6 +75,60 @@ async def get_bars(
         for _, row in df.iterrows()
     ]
     return {"symbol": symbol, "timeframe": timeframe, "bars": bars}
+
+
+@router.post("/import")
+async def import_csv(
+    file: UploadFile = File(...),
+    symbol: str = Form(...),
+    timeframe: str = Form("1h"),
+    preview: bool = Form(False),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Import an OHLCV CSV (MT4/MT5, TradingView or generic export) into parquet.
+
+    Set preview=true to validate + preview without writing anything.
+    """
+    raw = await file.read()
+    if len(raw) > 60 * 1024 * 1024:
+        raise HTTPException(400, "File too large (60 MB limit)")
+    try:
+        df, meta = parse_ohlcv_csv(raw)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    preview_rows = [
+        {
+            "time": r["timestamp"].isoformat(),
+            "open": r["open"], "high": r["high"], "low": r["low"],
+            "close": r["close"], "volume": r["volume"],
+        }
+        for _, r in df.head(5).iterrows()
+    ]
+
+    if preview:
+        return {"ok": True, "preview": True, "meta": meta, "rows_head": preview_rows}
+
+    symbol = symbol.strip().upper()
+    if "/" not in symbol and any(s in symbol for s in ("USD", "EUR", "JPY", "GBP")) and len(symbol) == 6:
+        symbol = f"{symbol[:3]}/{symbol[3:]}"
+
+    # register the symbol if new
+    existing = (await db.execute(select(Symbol).where(Symbol.name == symbol))).scalars().first()
+    if not existing:
+        db.add(Symbol(name=symbol, provider="csv", market_type="imported",
+                      base_currency=symbol.split("/")[0] if "/" in symbol else "",
+                      quote_currency=symbol.split("/")[1] if "/" in symbol else ""))
+        await db.commit()
+
+    saved = save_bars(df, symbol, timeframe, provider="csv")
+    # merge into the generic view so charts see it immediately
+    try:
+        save_bars(df, symbol, timeframe, provider="generic")
+    except Exception:  # noqa: BLE001
+        pass
+    return {"ok": True, "saved": saved, "symbol": symbol, "timeframe": timeframe,
+            "meta": meta, "rows_head": preview_rows}
 
 
 @router.post("/backfill")

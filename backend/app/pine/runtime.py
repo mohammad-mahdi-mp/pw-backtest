@@ -195,6 +195,13 @@ def eval_expr(ast: dict, df: pd.DataFrame, env: dict) -> Any:
         return ast["v"]
     if t == "str":
         return ast["v"]
+    if t == "hist":
+        base = eval_expr(ast["x"], df, env)
+        k = eval_expr(ast["k"], df, env)
+        k = int(k) if isinstance(k, (int, float)) and not pd.isna(k) else 0
+        if isinstance(base, pd.Series):
+            return base.shift(k)
+        return base  # scalar history is itself
     if t == "id":
         v = ast["v"]
         if v in _CONST_IDS and _CONST_IDS[v] is not None:
@@ -294,6 +301,139 @@ def _series_to_output(title: str, series: pd.Series, df: pd.DataFrame, plot_meta
     }
 
 
+# ---------------------------------------------------- scalar (per-bar) evaluator
+
+_EMPTY_DF = pd.DataFrame()
+
+
+def eval_scalar(ast: dict, scope: dict, prev_scope: dict, hist=None) -> Any:
+    """Evaluate an expression to a scalar at one bar.
+
+    `scope` maps every visible name to its value at this bar; `prev_scope`
+    holds the previous bar's values (used by ta.crossover/crossunder/change).
+    `hist(name, k)` (optional) resolves history access like `close[k]`.
+    """
+    t = ast["t"]
+    if t == "num":
+        return ast["v"]
+    if t == "str":
+        return ast["v"]
+    if t == "hist":
+        if hist is None:
+            raise NotImplementedError("history access close[k] is only available inside indicator control flow")
+        name = ast["x"]["v"] if ast["x"].get("t") == "id" else None
+        if name is None:
+            raise NotImplementedError("history access is only supported on variables (close[1])")
+        k = int(eval_scalar(ast["k"], scope, prev_scope, hist))
+        v = hist(name, k)
+        return float("nan") if v is None else v
+    if t == "id":
+        v = ast["v"]
+        if v in _CONST_IDS and _CONST_IDS[v] is not None:
+            return _CONST_IDS[v]
+        if v in scope:
+            return scope[v]
+        if v in prev_scope:
+            return prev_scope[v]
+        raise ValueError(f"Unknown identifier: {v}")
+    if t == "un":
+        x = eval_scalar(ast["x"], scope, prev_scope, hist)
+        return -x if ast["op"] == "-" else (not _to_bool(x))
+    if t == "bin":
+        op = ast["op"]
+        if op == "and":
+            return bool(_to_bool(eval_scalar(ast["l"], scope, prev_scope, hist)) and
+                        _to_bool(eval_scalar(ast["r"], scope, prev_scope, hist)))
+        if op == "or":
+            return bool(_to_bool(eval_scalar(ast["l"], scope, prev_scope, hist)) or
+                        _to_bool(eval_scalar(ast["r"], scope, prev_scope, hist)))
+        l = eval_scalar(ast["l"], scope, prev_scope, hist)
+        r = eval_scalar(ast["r"], scope, prev_scope, hist)
+        if op == "+":
+            return l + r
+        if op == "-":
+            return l - r
+        if op == "*":
+            return l * r
+        if op == "/":
+            return l / r
+        if op == ">":
+            return l > r
+        if op == "<":
+            return l < r
+        if op == ">=":
+            return l >= r
+        if op == "<=":
+            return l <= r
+        if op == "==":
+            return l == r
+        if op == "!=":
+            return l != r
+        raise NotImplementedError(f"operator {op}")
+    if t == "ternary":
+        c = eval_scalar(ast["c"], scope, prev_scope, hist)
+        return (eval_scalar(ast["a"], scope, prev_scope, hist) if _to_bool(c)
+                else eval_scalar(ast["b"], scope, prev_scope, hist))
+    if t == "call":
+        fn = ast["fn"]
+        args = [eval_scalar(a, scope, prev_scope, hist) for a in ast["args"]]
+        if fn.startswith("math."):
+            return _math_eval(fn[5:], args, _EMPTY_DF)
+        if fn == "ta.crossover":
+            if len(args) != 2:
+                raise ValueError("ta.crossover needs 2 arguments")
+            pa = _prev_val(ast["args"][0], scope, prev_scope, hist)
+            pb = _prev_val(ast["args"][1], scope, prev_scope, hist)
+            return bool(args[0] > args[1] and not (pa > pb))
+        if fn == "ta.crossunder":
+            if len(args) != 2:
+                raise ValueError("ta.crossunder needs 2 arguments")
+            pa = _prev_val(ast["args"][0], scope, prev_scope, hist)
+            pb = _prev_val(ast["args"][1], scope, prev_scope, hist)
+            return bool(args[0] < args[1] and not (pa < pb))
+        if fn == "ta.change":
+            pa = _prev_val(ast["args"][0], scope, prev_scope, hist)
+            return args[0] - pa
+        if fn == "input":
+            return args[0] if args else 0
+        raise NotImplementedError(
+            f"{fn}() cannot be used inside if/for blocks — precompute it at top level"
+        )
+    raise NotImplementedError(f"AST node {t}")
+
+
+def _prev_val(ast: dict, scope: dict, prev_scope: dict, hist=None) -> Any:
+    """Value of an expression on the previous bar (for crossover/change)."""
+    return eval_scalar(ast, prev_scope, prev_scope, hist)
+
+
+def _ast_ids(ast: dict) -> set[str]:
+    """Collect all identifier names referenced by an AST node."""
+    out: set[str] = set()
+    t = ast.get("t")
+    if t == "id":
+        out.add(ast["v"])
+    elif t in ("un",):
+        out |= _ast_ids(ast["x"])
+    elif t == "bin":
+        out |= _ast_ids(ast["l"]) | _ast_ids(ast["r"])
+    elif t == "ternary":
+        out |= _ast_ids(ast["c"]) | _ast_ids(ast["a"]) | _ast_ids(ast["b"])
+    elif t == "call":
+        for a in ast.get("args", []):
+            out |= _ast_ids(a)
+        for a in ast.get("kwargs", {}).values():
+            out |= _ast_ids(a)
+    return out
+
+
+def _is_stateful(ast: dict, state_names: set[str]) -> bool:
+    return bool(_ast_ids(ast) & state_names)
+
+
+# ---------------------------------------------------------------- indicators
+
+
 def run_indicator(source: str, bars: list[dict]) -> list[dict]:
     ir = compile_pine(source)
     df = bars_to_df(bars)
@@ -302,12 +442,182 @@ def run_indicator(source: str, bars: list[dict]) -> list[dict]:
 
     env: dict[str, Any] = {inp["name"]: inp["default"] for inp in ir["inputs"]}
     outputs: list[dict] = []
+    state_names: set[str] = set(ir.get("state_vars", []))
 
+    needs_barloop = any(st.get("kind") in ("var_decl", "if", "for") for st in ir["statements"])
+
+    if not needs_barloop:
+        # ---- pure vectorized path (original behaviour) ----
+        for st in ir["statements"]:
+            k = st["kind"]
+            if k == "assign":
+                env[st["name"]] = eval_expr(st["expr"], df, env)
+            elif k == "plot":
+                v = eval_expr(st["expr"], df, env)
+                title = st["title"] or st["src"]
+                if isinstance(v, pd.DataFrame):
+                    for col in v.columns:
+                        outputs.append(_series_to_output(f"{title}.{col}", v[col], df, st))
+                else:
+                    outputs.append(_series_to_output(title, v, df, st))
+        return outputs
+
+    # ---- hybrid path: vectorized precompute + bar-by-bar control flow ----
+    n = len(df)
+    arrays: dict[str, list] = {name: [None] * n for name in state_names}
+    vec_done: set[int] = set()  # indices of statements already vectorized
+    builtin_cols = [c for c in ("open", "high", "low", "close", "volume") if c in df.columns]
+
+    def vectorized(idx: int, st: dict) -> None:
+        """Precompute a top-level plain assign vectorized (once)."""
+        if idx in vec_done:
+            return
+        vec_done.add(idx)
+        env[st["name"]] = eval_expr(st["expr"], df, env)
+
+    def hist_at(name: str, k: int, i: int) -> Any:
+        """Value of a series/state var k bars back from bar i."""
+        j = i - k
+        if name in state_names:
+            if j < 0:
+                return None
+            v = arrays[name][j]
+            return 0 if v is None else v
+        if name in df.columns:
+            if j < 0:
+                return None
+            v = df[name].iloc[j]
+            return None if pd.isna(v) else float(v)
+        if name in env:
+            v = env[name]
+            if isinstance(v, pd.Series):
+                if j < 0:
+                    return None
+                s = v.iloc[j]
+                return None if pd.isna(s) else float(s)
+            return v  # scalar constant — same every bar
+        return None
+
+    def build_scope(i: int, extra: dict | None = None) -> dict:
+        scope: dict[str, Any] = {}
+        for name, v in env.items():
+            if isinstance(v, pd.Series):
+                s = v.iloc[i]
+                scope[name] = None if pd.isna(s) else float(s)
+            elif isinstance(v, pd.DataFrame):
+                scope[name] = v.iloc[i].to_dict()
+            else:
+                scope[name] = v
+        for c in builtin_cols:
+            scope[c] = float(df[c].iloc[i])
+        # current per-bar values of control-flow state vars
+        for name in state_names:
+            if extra and name in extra:
+                continue
+            v = arrays[name][i]
+            scope[name] = 0 if v is None else v
+        if extra:
+            scope.update(extra)
+        return scope
+
+    def cond_bool(st: dict, i: int, prev: dict) -> bool:
+        if _is_stateful(st["cond"], state_names):
+            return bool(_to_bool(eval_scalar(st["cond"], build_scope(i), prev, lambda nm, kk: hist_at(nm, kk, i))))
+        # vectorized cond (memoized on the statement)
+        if "_cond_series" not in st:
+            st["_cond_series"] = _to_bool(eval_expr(st["cond"], df, env))
+        s = st["_cond_series"].iloc[i]
+        return bool(s)
+
+    def exec_stmts(stmts: list[dict], i: int, prev: dict, loop_scope: dict | None) -> tuple[bool, bool]:
+        """Execute a block at bar i. Returns (broke, continued)."""
+        for s in stmts:
+            k = s.get("kind")
+            if k == "assign":
+                if s["name"] not in arrays:
+                    arrays[s["name"]] = [None] * n
+                    state_names.add(s["name"])
+                arrays[s["name"]][i] = eval_scalar(s["expr"], build_scope(i, loop_scope), prev, lambda nm, kk: hist_at(nm, kk, i))
+            elif k == "if":
+                broke = cont = False
+                if cond_bool(s, i, prev):
+                    broke, cont = exec_stmts(s["body"], i, prev, loop_scope)
+                else:
+                    for elif_node in s.get("elifs", []):
+                        if _cond_bool_node(elif_node, i, prev):
+                            broke, cont = exec_stmts(elif_node["body"], i, prev, loop_scope)
+                            break
+                    else:
+                        if s.get("else_body"):
+                            broke, cont = exec_stmts(s["else_body"], i, prev, loop_scope)
+                if broke:
+                    return True, False
+                if cont:
+                    return False, True
+            elif k == "for":
+                scope0 = build_scope(i, loop_scope)
+                a = int(eval_scalar(s["from"], scope0, prev, lambda nm, kk: hist_at(nm, kk, i)))
+                bnd = int(eval_scalar(s["to"], scope0, prev, lambda nm, kk: hist_at(nm, kk, i)))
+                by = int(eval_scalar(s["by"], scope0, prev)) if s.get("by") else None
+                step = by if by is not None else (1 if a <= bnd else -1)
+                rng = range(a, bnd + (1 if step > 0 else -1), step)
+                for j in rng:
+                    b, c = exec_stmts(s["body"], i, prev, {**(loop_scope or {}), s["var"]: j})
+                    if b:
+                        return True, False
+                    if c:
+                        continue
+            elif k == "break":
+                return True, False
+            elif k == "continue":
+                return False, True
+        return False, False
+
+    def _cond_bool_node(node: dict, i: int, prev: dict) -> bool:
+        if _is_stateful(node["cond"], state_names):
+            return bool(_to_bool(eval_scalar(node["cond"], build_scope(i), prev, lambda nm, kk: hist_at(nm, kk, i))))
+        if "_cond_series" not in node:
+            node["_cond_series"] = _to_bool(eval_expr(node["cond"], df, env))
+        return bool(node["_cond_series"].iloc[i])
+
+    # bar loop
+    prev_scope: dict = {}
+    for i in range(n):
+        # carry var state forward
+        for name in state_names:
+            arrays[name][i] = arrays[name][i - 1] if i > 0 else None
+        # pass 1: statements in order
+        for idx, st in enumerate(ir["statements"]):
+            k = st["kind"]
+            if k == "var_decl":
+                if i == 0:
+                    scope = build_scope(0)
+                    arrays[st["name"]][0] = eval_scalar(st["expr"], scope, {}, lambda nm, kk: hist_at(nm, kk, 0))
+            elif k == "assign":
+                if _is_stateful(st["expr"], state_names) or st.get("reassign"):
+                    if st["name"] not in arrays:
+                        arrays[st["name"]] = [None] * n
+                        state_names.add(st["name"])
+                    arrays[st["name"]][i] = eval_scalar(st["expr"], build_scope(i), prev_scope, lambda nm, kk: hist_at(nm, kk, i))
+                else:
+                    vectorized(idx, st)
+            elif k == "if":
+                exec_stmts([st], i, prev_scope, None)
+            elif k == "for":
+                exec_stmts([st], i, prev_scope, None)
+        prev_scope = build_scope(i)
+        # refresh env scalars for state vars (so later vectorized exprs can't be wrong) —
+        # state vars stay out of env until the loop finishes
+
+    # state arrays become series
+    for name in arrays:
+        env[name] = pd.Series(
+            [v if v is not None else float("nan") for v in arrays[name]], index=df.index
+        )
+
+    # plots
     for st in ir["statements"]:
-        k = st["kind"]
-        if k == "assign":
-            env[st["name"]] = eval_expr(st["expr"], df, env)
-        elif k == "plot":
+        if st["kind"] == "plot":
             v = eval_expr(st["expr"], df, env)
             title = st["title"] or st["src"]
             if isinstance(v, pd.DataFrame):
