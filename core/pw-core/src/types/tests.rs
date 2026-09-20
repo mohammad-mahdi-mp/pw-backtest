@@ -13,7 +13,7 @@ fn roundtrip<T: serde::Serialize + serde::de::DeserializeOwned>(v: &T) -> T {
 #[test]
 fn bar_json_field_names_are_contract_exact() {
     let bar = Bar { time: 1_700_000_000_000, open: 60_000.0, high: 60_100.0, low: 59_900.0, close: 60_050.0, volume: 12.5 };
-    let v: Value = serde_json::to_value(&bar).expect("to value");
+    let v: Value = serde_json::to_value(bar).expect("to value");
     let obj = v.as_object().expect("object");
     let keys: Vec<&str> = obj.keys().map(String::as_str).collect();
     assert_eq!(keys, vec!["time", "open", "high", "low", "close", "volume"]);
@@ -36,7 +36,7 @@ fn bar_is_copy_and_partial_eq() {
 #[test]
 fn tick_serde_roundtrip_and_json() {
     let tick = Tick { time: 1_700_000_000_000, price: 60_002.0, volume: 0.0 };
-    let v: Value = serde_json::to_value(&tick).expect("to value");
+    let v: Value = serde_json::to_value(tick).expect("to value");
     assert_eq!(v, json!({"time": 1_700_000_000_000i64, "price": 60002.0, "volume": 0.0}));
     assert_eq!(roundtrip(&tick), tick);
 }
@@ -162,7 +162,7 @@ fn order_none_fields_serialize_as_null() {
     o.take_profit = None;
     o.trailing = None;
     o.tag = None;
-    let v: Value = serde_json::to_value(&o).expect("to value");
+    let v: Value = serde_json::to_value(o).expect("to value");
     assert_eq!(v["price"], Value::Null);
     assert_eq!(v["stop_loss"], Value::Null);
     assert_eq!(v["take_profit"], Value::Null);
@@ -219,7 +219,7 @@ fn fill_serde_roundtrip_full() {
         reason: FillReason::Market,
     };
     assert_eq!(roundtrip(&f), f);
-    let v: Value = serde_json::to_value(&f).expect("to value");
+    let v: Value = serde_json::to_value(f).expect("to value");
     assert_eq!(v["reason"], json!("Market"));
     assert_eq!(v["side"], json!("Buy"));
 }

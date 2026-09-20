@@ -24,7 +24,7 @@ fn check_fixture(file: &str) {
 
     let output = run_parity_fixture(&fixture);
     let actual =
-        serde_json::to_value(&output.events).expect("engine events must serialize");
+        serde_json::to_value(output.events).expect("engine events must serialize");
 
     let expected = &fixture["expected"]["events"];
     let mut diff = String::new();
