@@ -1,98 +1,143 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Editor from "@monaco-editor/react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import type { Monaco } from "@monaco-editor/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Plus, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui";
 
 const DEFAULT_SCRIPT = `//@version=5
 indicator("My Indicator", overlay=true)
-len = input.int(14, title="RSI Length", minval=1)
-rsiVal = ta.rsi(close, len)
-sma20 = ta.sma(close, 20)
-sma50 = ta.sma(close, 50)
-plot(sma20, color=color.blue)
-plot(sma50, color=color.orange)
+len = input.int(14, title="Length")
+basis = ta.sma(close, len)
+dev = ta.ema(close, len * 2)
+plot(basis, color=color.blue)
+plot(dev, color=color.orange)
 `;
 
 type Props = {
-  onRun: (source: string) => void;
+  onAddToChart?: (title: string, source: string) => void;
 };
 
-export function PineEditor({ onRun }: Props) {
-  const [source, setSource] = useState<string>(DEFAULT_SCRIPT);
+export function PineEditor({ onAddToChart }: Props) {
+  const [source, setSource] = useState(DEFAULT_SCRIPT);
   const [scriptId, setScriptId] = useState<number | null>(null);
   const [name, setName] = useState("My Indicator");
-  const [diagnostics, setDiagnostics] = useState<string>("");
+  const [diag, setDiag] = useState("");
+  const addIndicator = useUIStore((s) => s.addIndicator);
 
-  const { data: scripts } = useQuery({ queryKey: ["pine-scripts"], queryFn: api.listScripts, initialData: [] });
-  const saveMut = useMutation({ mutationFn: api.saveScript });
+  const qc = useQueryClient();
+  const saveMut = useMutation({
+    mutationFn: api.saveScript,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pine-scripts"] }),
+  });
 
-  useEffect(() => {
-    // register Pine language with Monaco (basic highlight)
-    const mon: any = (window as any).monaco;
-    if (!mon) return;
-    if (mon.languages.getLanguages().some((l: any) => l.id === "pine")) return;
-    mon.languages.register({ id: "pine" });
-    mon.languages.setMonarchTokensProvider("pine", {
-      keywords: ["indicator", "strategy", "plot", "if", "else", "for", "var", "varip", "true", "false", "input", "and", "or", "not"],
+  const registerLanguage = (monaco: Monaco) => {
+    if (monaco.languages.getLanguages().some((l) => l.id === "pine")) return;
+    monaco.languages.register({ id: "pine" });
+    monaco.languages.setMonarchTokensProvider("pine", {
+      keywords: [
+        "indicator", "strategy", "plot", "plotshape", "if", "else", "for", "while",
+        "var", "varip", "true", "false", "na", "input", "and", "or", "not", "series",
+        "simple", "float", "int", "bool", "color", "string", "line", "label",
+      ],
       tokenizer: {
         root: [
           [/\/\/.*$/, "comment"],
-          [/ta\.\w+/, "type.identifier"],
-          [/input\.\w+/, "type.identifier"],
-          [/color\.\w+/, "predefined"],
+          [/\/\/@version\=\d+/, "annotation"],
           [/"[^"]*"/, "string"],
+          [/\b(ta|math|str|color|input|strategy)\b/, "keyword"],
           [/\b\d+(\.\d+)?\b/, "number"],
+          [/[#][0-9a-fA-F]{6}/, "number"],
           [/[A-Za-z_][A-Za-z0-9_]*/, { cases: { "@keywords": "keyword", "@default": "identifier" } }],
         ],
       },
     });
-    mon.editor.defineTheme("pine-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [],
-      colors: { "editor.background": "#1e222d" },
-    });
-  }, []);
+  };
 
-  const handleRun = () => {
-    api.compileScript(source).then((r) => {
-      if (!r.ok) setDiagnostics(r.error); else setDiagnostics(`OK — ${(r.ir?.plots || []).length} plot(s)`);
-    });
-    onRun(source);
+  const handleAddToChart = async () => {
+    try {
+      const r = await api.compileScript(source);
+      if (!r.ok) {
+        setDiag(`✗ ${r.error}`);
+        return;
+      }
+      setDiag(`✓ compiled — ${(r.ir?.plots || []).length} plot(s), overlay=${r.ir?.overlay}. Added to chart.`);
+      if (onAddToChart) {
+        onAddToChart(name, source);
+      } else {
+        addIndicator({
+          id: `ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          title: name,
+          source,
+          overlay: !!r.ir?.overlay,
+        });
+      }
+    } catch (e: any) {
+      setDiag(`✗ ${e?.message ?? "compile failed"}`);
+    }
   };
 
   const handleSave = async () => {
     const r = await saveMut.mutateAsync({ id: scriptId, name, source, kind: "indicator" });
     setScriptId(r.id);
-    setDiagnostics(`Saved as "${r.name}" (id ${r.id})`);
+    setDiag(`Saved "${r.name}" (#${r.id})`);
   };
 
   return (
-    <Card className="rounded-none border-0 h-full bg-tvpanel flex flex-col">
-      <CardHeader className="p-2 flex flex-row items-center gap-2">
-        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground flex-1">Pine Editor</CardTitle>
-        <Input value={name} onChange={(e) => setName(e.target.value)} className="w-40 h-7 text-xs" />
-        <Button size="sm" variant="secondary" onClick={handleRun}>Run</Button>
-        <Button size="sm" onClick={handleSave}>Save</Button>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 overflow-hidden relative">
+    <div className="w-full h-full flex flex-col min-h-0">
+      {/* toolbar */}
+      <div className="h-[30px] shrink-0 flex items-center gap-2 px-2 border-b border-tvborder">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="h-6 w-44 bg-[#131722] border border-tvborder rounded px-2 text-[12px] text-[#d1d4dc] outline-none"
+        />
+        <button
+          onClick={handleAddToChart}
+          className="flex items-center gap-1 h-6 px-2 rounded bg-primary/20 text-primary text-[12px] font-semibold hover:bg-primary/30"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add to chart
+        </button>
+        <button
+          onClick={handleSave}
+          className="flex items-center gap-1 h-6 px-2 rounded text-[12px] text-[#d1d4dc] hover:bg-[#2a2e39]"
+        >
+          <Save className="w-3.5 h-3.5" /> Save
+        </button>
+        <div className="flex-1" />
+        {diag && (
+          <span
+            className={cn(
+              "text-[11px] max-w-[420px] truncate",
+              diag.startsWith("✓") ? "text-bull" : "text-bear"
+            )}
+          >
+            {diag}
+          </span>
+        )}
+      </div>
+
+      {/* editor */}
+      <div className="flex-1 min-h-0">
         <Editor
           height="100%"
           defaultLanguage="pine"
-          theme="pine-dark"
+          theme="vs-dark"
           value={source}
           onChange={(v) => setSource(v || "")}
-          options={{ fontSize: 13, minimap: { enabled: false }, scrollBeyondLastLine: false, fontFamily: "JetBrains Mono, monospace" }}
+          beforeMount={registerLanguage}
+          options={{
+            fontSize: 13,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fontFamily: "JetBrains Mono, Fira Code, monospace",
+            lineNumbersMinChars: 3,
+            padding: { top: 6 },
+          }}
         />
-        {diagnostics && (
-          <div className="absolute bottom-0 left-0 right-0 bg-tvpanel border-t border-tvborder text-xs px-2 py-1 text-muted-foreground">
-            {diagnostics}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,88 +1,145 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { createChart } from "lightweight-charts";
+import { useEffect, useRef, useCallback } from "react";
+import { createChart, ColorType } from "lightweight-charts";
 import type {
   IChartApi,
   ISeriesApi,
-  CandlestickData,
   Time,
+  CandlestickData,
+  BarData,
   LineData,
+  AreaData,
   HistogramData,
 } from "lightweight-charts";
-import type { Bar, PlotSeries } from "@/types";
+import type { Bar, PlotSeries, PaneSpec } from "@/types";
+import type { ChartType } from "@/stores/ui";
+
+const C = {
+  bg: "#131722",
+  text: "#d1d4dc",
+  grid: "#1e222d",
+  border: "#2a2e39",
+  bull: "#26a69a",
+  bear: "#ef5350",
+  blue: "#2962ff",
+};
+
+function heikinAshi(bars: Bar[]): Bar[] {
+  const out: Bar[] = [];
+  let po = 0;
+  let pc = 0;
+  bars.forEach((b, i) => {
+    const close = (b.open + b.high + b.low + b.close) / 4;
+    const open = i === 0 ? (b.open + b.close) / 2 : (po + pc) / 2;
+    out.push({
+      time: b.time,
+      open,
+      close,
+      high: Math.max(b.high, open, close),
+      low: Math.min(b.low, open, close),
+      volume: b.volume,
+    });
+    po = open;
+    pc = close;
+  });
+  return out;
+}
 
 type Props = {
   bars: Bar[];
-  overlays?: PlotSeries[];
-  panes?: PlotSeries[];
-  height?: number;
+  chartType: ChartType;
+  overlays: PlotSeries[];
+  panes: PaneSpec[];
+  showVolume: boolean;
+  precision: number;
+  minMove: number;
+  watermark: string;
   onCrosshair?: (b: Bar | null) => void;
 };
 
-export function Chart({ bars, overlays = [], panes = [], height = 500, onCrosshair }: Props) {
+export function Chart({
+  bars,
+  chartType,
+  overlays,
+  panes,
+  showVolume,
+  precision,
+  minMove,
+  watermark,
+  onCrosshair,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const mainSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const mainRef = useRef<ISeriesApi<any> | null>(null);
+  const volRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const overlayRefs = useRef<ISeriesApi<any>[]>([]);
-  const paneContainers = useRef<(HTMLDivElement | null)[]>([]);
-  const paneCharts = useRef<IChartApi[]>([]);
+  const paneRefs = useRef<HTMLDivElement[]>([]);
+  const paneChartRefs = useRef<IChartApi[]>([]);
 
-  const [lastBar, setLastBar] = useState<Bar | null>(null);
+  const priceFormat = { type: "price" as const, precision, minMove };
 
-  // Create main chart
+  // ---- create main chart ----
   useEffect(() => {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: "#131722" },
-        textColor: "#d1d4dc",
-        fontFamily: "Inter, ui-sans-serif, system-ui",
+        background: { type: ColorType.Solid, color: C.bg },
+        textColor: C.text,
+        fontFamily: "Trebuchet MS, -apple-system, Roboto, sans-serif",
+        fontSize: 12,
       },
       grid: {
-        vertLines: { color: "#1e222d" },
-        horzLines: { color: "#1e222d" },
+        vertLines: { color: C.grid },
+        horzLines: { color: C.grid },
       },
-      crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: "#2a2e39" },
-      timeScale: { borderColor: "#2a2e39", timeVisible: true, secondsVisible: false },
+      crosshair: {
+        mode: 1,
+        vertLine: { color: "#758696", width: 1, style: 3, labelBackgroundColor: "#363a45" },
+        horzLine: { color: "#758696", width: 1, style: 3, labelBackgroundColor: "#363a45" },
+      },
+      rightPriceScale: {
+        borderColor: C.border,
+        scaleMargins: { top: 0.1, bottom: 0.25 },
+      },
+      timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: false, rightOffset: 6 },
+      watermark: {
+        visible: true,
+        text: watermark,
+        color: "rgba(120, 123, 134, 0.20)",
+        fontSize: 52,
+        horzAlign: "center",
+        vertAlign: "center",
+        fontFamily: "Trebuchet MS, sans-serif",
+      },
       width: containerRef.current.clientWidth,
-      height,
+      height: containerRef.current.clientHeight,
     });
     chartRef.current = chart;
 
-    const candles = chart.addCandlestickSeries({
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      borderUpColor: "#26a69a",
-      borderDownColor: "#ef5350",
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
-    });
-    mainSeriesRef.current = candles;
-
     chart.subscribeCrosshairMove((p) => {
-      if (!p || !p.time) {
-        setLastBar(null);
+      if (!p || !p.time || !mainRef.current) {
         onCrosshair?.(null);
         return;
       }
-      const d = p.seriesData.get(candles) as CandlestickData<Time> | undefined;
+      const d = p.seriesData.get(mainRef.current);
       if (d) {
-        const bar: Bar = {
-          time: d.time as number,
-          open: d.open as number,
-          high: d.high as number,
-          low: d.low as number,
-          close: d.close as number,
+        const b = d as any;
+        onCrosshair?.({
+          time: p.time as number,
+          open: b.open ?? b.value,
+          high: b.high ?? b.value,
+          low: b.low ?? b.value,
+          close: b.close ?? b.value,
           volume: 0,
-        };
-        setLastBar(bar);
-        onCrosshair?.(bar);
+        });
       }
     });
 
     const ro = new ResizeObserver(() => {
       if (containerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
+        chartRef.current.applyOptions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
       }
     });
     ro.observe(containerRef.current);
@@ -91,120 +148,196 @@ export function Chart({ bars, overlays = [], panes = [], height = 500, onCrossha
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
-      mainSeriesRef.current = null;
+      mainRef.current = null;
+      volRef.current = null;
       overlayRefs.current = [];
     };
-  }, [height, onCrosshair]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Load bars
+  // watermark text update
   useEffect(() => {
-    if (!mainSeriesRef.current || !chartRef.current) return;
-    const data: CandlestickData<Time>[] = bars.map((b) => ({
-      time: b.time as Time,
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-    }));
-    mainSeriesRef.current.setData(data);
-    if (data.length) chartRef.current.timeScale().fitContent();
-  }, [bars]);
+    chartRef.current?.applyOptions({ watermark: { text: watermark } } as any);
+  }, [watermark]);
 
-  // Overlays
+  // ---- main series (type + data) ----
   useEffect(() => {
-    if (!chartRef.current) return;
-    overlayRefs.current.forEach((s) => chartRef.current!.removeSeries(s));
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (mainRef.current) {
+      chart.removeSeries(mainRef.current);
+      mainRef.current = null;
+    }
+
+    const src = chartType === "heikin" ? heikinAshi(bars) : bars;
+
+    if (chartType === "candles" || chartType === "heikin") {
+      const s = chart.addCandlestickSeries({
+        upColor: C.bull,
+        downColor: C.bear,
+        borderUpColor: C.bull,
+        borderDownColor: C.bear,
+        wickUpColor: C.bull,
+        wickDownColor: C.bear,
+        priceFormat,
+      });
+      s.setData(
+        src.map((b) => ({ time: b.time as Time, open: b.open, high: b.high, low: b.low, close: b.close })) as CandlestickData<Time>[]
+      );
+      mainRef.current = s;
+    } else if (chartType === "bars") {
+      const s = chart.addBarSeries({
+        upColor: C.bull,
+        downColor: C.bear,
+        thinBars: false,
+        priceFormat,
+      });
+      s.setData(
+        src.map((b) => ({ time: b.time as Time, open: b.open, high: b.high, low: b.low, close: b.close })) as BarData<Time>[]
+      );
+      mainRef.current = s;
+    } else if (chartType === "line") {
+      const s = chart.addLineSeries({ color: C.blue, lineWidth: 2, priceFormat });
+      s.setData(src.map((b) => ({ time: b.time as Time, value: b.close })) as LineData<Time>[]);
+      mainRef.current = s;
+    } else {
+      const s = chart.addAreaSeries({
+        lineColor: C.blue,
+        topColor: "rgba(41, 98, 255, 0.28)",
+        bottomColor: "rgba(41, 98, 255, 0.02)",
+        lineWidth: 2,
+        priceFormat,
+      });
+      s.setData(src.map((b) => ({ time: b.time as Time, value: b.close })) as AreaData<Time>[]);
+      mainRef.current = s;
+    }
+
+    if (bars.length) chart.timeScale().fitContent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bars, chartType]);
+
+  // ---- volume ----
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (volRef.current) {
+      chart.removeSeries(volRef.current);
+      volRef.current = null;
+    }
+    if (!showVolume || bars.length === 0) return;
+    const s = chart.addHistogramSeries({
+      priceScaleId: "vol",
+      priceFormat: { type: "volume" },
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    s.setData(
+      bars.map((b) => ({
+        time: b.time as Time,
+        value: b.volume,
+        color: b.close >= b.open ? "rgba(38, 166, 154, 0.45)" : "rgba(239, 83, 80, 0.45)",
+      })) as HistogramData<Time>[]
+    );
+    volRef.current = s;
+  }, [bars, showVolume, chartType]);
+
+  // ---- overlays ----
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    overlayRefs.current.forEach((s) => chart.removeSeries(s));
     overlayRefs.current = [];
     for (const o of overlays) {
-      const s = chartRef.current.addLineSeries({
-        color: o.color || "#2962FF",
+      const s = chart.addLineSeries({
+        color: o.color || C.blue,
         lineWidth: 2,
         priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
       });
-      s.setData(o.data.map((d) => ({ time: d.time as Time, value: d.value } as LineData<Time>)));
+      s.setData(o.data.map((d) => ({ time: d.time as Time, value: d.value })) as LineData<Time>[]);
       overlayRefs.current.push(s);
     }
   }, [overlays]);
 
-  // Sub-panes
+  // ---- sub panes ----
   const setPaneRef = useCallback((idx: number) => (el: HTMLDivElement | null) => {
-    paneContainers.current[idx] = el;
+    if (el) paneRefs.current[idx] = el;
   }, []);
 
   useEffect(() => {
-    paneCharts.current.forEach((c) => c.remove());
-    paneCharts.current = [];
+    paneChartRefs.current.forEach((c) => c.remove());
+    paneChartRefs.current = [];
 
-    panes.forEach((p, idx) => {
-      const container = paneContainers.current[idx];
+    panes.forEach((pane, idx) => {
+      const container = paneRefs.current[idx];
       if (!container) return;
       const chart = createChart(container, {
-        layout: { background: { color: "#131722" }, textColor: "#d1d4dc" },
-        grid: { vertLines: { color: "#1e222d" }, horzLines: { color: "#1e222d" } },
-        rightPriceScale: { borderColor: "#2a2e39" },
-        timeScale: { borderColor: "#2a2e39", visible: false },
+        layout: {
+          background: { type: ColorType.Solid, color: C.bg },
+          textColor: C.text,
+          fontFamily: "Trebuchet MS, -apple-system, Roboto, sans-serif",
+          fontSize: 11,
+        },
+        grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+        rightPriceScale: { borderColor: C.border, scaleMargins: { top: 0.15, bottom: 0.05 } },
+        timeScale: { borderColor: C.border, visible: false },
         width: container.clientWidth,
-        height: 150,
+        height: container.clientHeight,
+        handleScroll: false,
+        handleScale: false,
       });
-      let s: ISeriesApi<any>;
-      if (p.type === "histogram") {
-        s = chart.addHistogramSeries({ color: p.color, priceLineVisible: false });
-      } else {
-        s = chart.addLineSeries({ color: p.color, lineWidth: 2, priceLineVisible: false });
-      }
-      const mapped = p.data.map((d) =>
-        p.type === "histogram"
-          ? ({ time: d.time as Time, value: d.value } as HistogramData<Time>)
-          : ({ time: d.time as Time, value: d.value } as LineData<Time>)
-      );
-      s.setData(mapped as any);
 
-      // sync time scale with main chart
+      for (const ps of pane.series) {
+        if (ps.type === "histogram") {
+          const h = chart.addHistogramSeries({ priceLineVisible: false });
+          h.setData(
+            ps.data.map((d) => ({
+              time: d.time as Time,
+              value: d.value,
+              color: d.color || (d.value >= 0 ? "rgba(38,166,154,0.5)" : "rgba(239,83,80,0.5)"),
+            })) as HistogramData<Time>[]
+          );
+        } else {
+          const l = chart.addLineSeries({ color: ps.color || C.blue, lineWidth: 2, priceLineVisible: false });
+          l.setData(ps.data.map((d) => ({ time: d.time as Time, value: d.value })) as LineData<Time>[]);
+        }
+      }
+
+      // sync with main chart time scale
       if (chartRef.current) {
         const mainTs = chartRef.current.timeScale();
         const paneTs = chart.timeScale();
         mainTs.subscribeVisibleLogicalRangeChange((r) => {
           if (r) paneTs.setVisibleLogicalRange(r);
         });
-        mainTs.subscribeVisibleTimeRangeChange((r) => {
-          if (r) paneTs.setVisibleRange({ from: r.from, to: r.to });
-        });
       }
 
       const ro = new ResizeObserver(() => {
-        chart.applyOptions({ width: container.clientWidth });
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       });
       ro.observe(container);
-
-      paneCharts.current.push(chart);
+      paneChartRefs.current.push(chart);
     });
 
     return () => {
-      paneCharts.current.forEach((c) => c.remove());
-      paneCharts.current = [];
+      paneChartRefs.current.forEach((c) => c.remove());
+      paneChartRefs.current = [];
     };
-  }, [panes, bars.length]);
+  }, [panes]);
 
   return (
-    <div className="flex flex-col w-full h-full">
-      <div ref={containerRef} className="chart-container bg-tvbg rounded-md" />
-      <div className="flex flex-col">
-        {panes.map((p, i) => (
-          <div key={p.id} className="border-t border-tvborder">
-            <div className="text-[10px] text-muted-foreground px-2 py-0.5">{p.title}</div>
-            <div ref={setPaneRef(i)} className="chart-container bg-tvbg" style={{ height: 150 }} />
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div ref={containerRef} className="flex-1 min-h-0" />
+      {panes.map((p, i) => (
+        <div key={p.id} className="border-t" style={{ borderColor: C.border, height: 130 }} >
+          <div className="text-[10px] px-2 pt-0.5" style={{ color: "#787b86" }}>
+            {p.title}
           </div>
-        ))}
-      </div>
-      {lastBar && (
-        <div className="text-xs text-muted-foreground px-2 py-1 flex gap-3">
-          <span>O <span className="text-slate-200">{lastBar.open.toFixed(5)}</span></span>
-          <span>H <span className="text-bull">{lastBar.high.toFixed(5)}</span></span>
-          <span>L <span className="text-bear">{lastBar.low.toFixed(5)}</span></span>
-          <span>C <span className="text-slate-200">{lastBar.close.toFixed(5)}</span></span>
-          <span className="ml-2">{new Date(lastBar.time * 1000).toISOString().replace("T", " ").slice(0, 19)}</span>
+          <div ref={setPaneRef(i)} className="w-full" style={{ height: 118 }} />
         </div>
-      )}
+      ))}
     </div>
   );
 }
