@@ -7,9 +7,14 @@ import { useAppStore } from "@/stores/app";
 import { useUIStore } from "@/stores/ui";
 import { fmtMoney, fmtNumber, fmtEpoch } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Play, History, FlaskConical, AlertCircle, Dices } from "lucide-react";
+import {
+  Play, History, FlaskConical, AlertCircle, Dices,
+  SlidersHorizontal, CalendarDays, Download, FileJson, X,
+} from "lucide-react";
 import type { BacktestResult, CurvePoint } from "@/types";
 import { MonteCarlo } from "@/components/bottom/MonteCarlo";
+import { OptimizeDialog } from "@/components/bottom/OptimizeDialog";
+import { MonthlyHeatmap } from "@/components/bottom/MonthlyHeatmap";
 
 const DEFAULT_STRATEGY = `//@version=5
 strategy("SMA Crossover", overlay=true, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=20)
@@ -88,6 +93,9 @@ export function BacktestPanel() {
   const [error, setError] = useState("");
   const [histOpen, setHistOpen] = useState(false);
   const [mcOpen, setMcOpen] = useState(false);
+  const [optOpen, setOptOpen] = useState(false);
+  const [heatOpen, setHeatOpen] = useState(false);
+  const [activeInputs, setActiveInputs] = useState<Record<string, number | boolean> | null>(null);
 
   const { data: runs } = useQuery({
     queryKey: ["backtest-runs"],
@@ -97,31 +105,80 @@ export function BacktestPanel() {
   const source = backtestRequest?.source ?? DEFAULT_STRATEGY;
   const stratName = backtestRequest?.name ?? "Sample: SMA Crossover";
 
-  const run = useCallback(async () => {
-    setRunning(true);
-    setError("");
-    try {
-      const r = await api.runBacktest({ source, symbol, timeframe, cash, leverage });
-      if (!r.ok) {
-        setError((r as any).error || "Backtest failed");
-        setResult(null);
-      } else {
-        setResult(r as BacktestResult);
+  const run = useCallback(
+    async (withInputs?: Record<string, number | boolean> | null) => {
+      const inputs = withInputs !== undefined ? withInputs : activeInputs;
+      setRunning(true);
+      setError("");
+      try {
+        const r = await api.runBacktest({
+          source, symbol, timeframe, cash, leverage,
+          ...(inputs && Object.keys(inputs).length ? { inputs } : {}),
+        });
+        if (!r.ok) {
+          setError((r as any).error || "Backtest failed");
+          setResult(null);
+        } else {
+          setResult(r as BacktestResult);
+          if (withInputs !== undefined) setActiveInputs(withInputs);
+        }
+      } catch (e: any) {
+        const m = (e?.message || "").match(/"detail":"([^"]+)"/);
+        setError(m ? m[1] : e?.message || "Backtest failed");
+      } finally {
+        setRunning(false);
       }
-    } catch (e: any) {
-      const m = (e?.message || "").match(/"detail":"([^"]+)"/);
-      setError(m ? m[1] : e?.message || "Backtest failed");
-    } finally {
-      setRunning(false);
-    }
-  }, [source, symbol, timeframe, cash, leverage]);
+    },
+    [source, symbol, timeframe, cash, leverage, activeInputs]
+  );
 
   // auto-run when a new request arrives from the Pine editor
   const reqKey = backtestRequest?.key ?? 0;
   useEffect(() => {
-    if (reqKey) run();
+    if (reqKey) {
+      setActiveInputs(null);
+      run(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reqKey]);
+
+  const exportCsv = useCallback(() => {
+    if (!result) return;
+    const cols = ["#", "side", "size", "entry_price", "exit_price", "entry_time", "exit_time", "exit_reason", "pnl", "pnl_pct", "mae_pct", "mfe_pct"];
+    const esc = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.join(",")];
+    result.trades.forEach((t, i) => {
+      lines.push(
+        [
+          i + 1, t.side, t.size, t.entry_price, t.exit_price,
+          t.entry_time, t.exit_time, t.reason,
+          t.pnl.toFixed(2), t.pnl_pct?.toFixed(4),
+          t.mae?.toFixed(3) ?? "", t.mfe?.toFixed(3) ?? "",
+        ]
+          .map(esc)
+          .join(",")
+      );
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `backtest-${result.name.replace(/[^\w.-]+/g, "_")}-${symbol.replace("/", "")}-${timeframe}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, [result, symbol, timeframe]);
+
+  const exportJson = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `backtest-${result.name.replace(/[^\w.-]+/g, "_")}-${symbol.replace("/", "")}-${timeframe}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, [result, symbol, timeframe]);
 
   const m = result?.metrics;
 
@@ -176,11 +233,19 @@ export function BacktestPanel() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={run}
+              onClick={() => run()}
               disabled={running}
               className="flex-1 h-8 rounded bg-primary text-white text-[12px] font-bold hover:bg-primary/85 disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5" /> {running ? "Running…" : "Run Backtest"}
+            </button>
+            <button
+              onClick={() => setOptOpen(true)}
+              disabled={running}
+              className="h-8 w-8 rounded bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] disabled:opacity-50 flex items-center justify-center"
+              title="Strategy Optimizer — grid sweep / walk-forward"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
             </button>
             {result && result.trades.length >= 5 && (
               <button
@@ -244,6 +309,50 @@ export function BacktestPanel() {
               <span>{error}</span>
             </div>
           )}
+
+          {activeInputs && Object.keys(activeInputs).length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-[10px]">
+              <span className="text-[#787b86]">inputs:</span>
+              {Object.entries(activeInputs).map(([k, v]) => (
+                <span key={k} className="font-mono bg-primary/15 text-primary border border-primary/30 rounded px-1">
+                  {k}={String(v)}
+                </span>
+              ))}
+              <button
+                onClick={() => run({})}
+                title="Clear input overrides and re-run"
+                className="text-[#787b86] hover:text-bear"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {result && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setHeatOpen(true)}
+                className="flex-1 h-7 rounded bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] text-[11px] flex items-center justify-center gap-1.5"
+                title="Monthly returns heatmap"
+              >
+                <CalendarDays className="w-3.5 h-3.5" /> Monthly
+              </button>
+              <button
+                onClick={exportCsv}
+                className="flex-1 h-7 rounded bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] text-[11px] flex items-center justify-center gap-1.5"
+                title="Export trades as CSV"
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+              <button
+                onClick={exportJson}
+                className="flex-1 h-7 rounded bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] text-[11px] flex items-center justify-center gap-1.5"
+                title="Export full result as JSON"
+              >
+                <FileJson className="w-3.5 h-3.5" /> JSON
+              </button>
+            </div>
+          )}
         </div>
 
         {/* metrics */}
@@ -303,6 +412,8 @@ export function BacktestPanel() {
                     <th className="px-2 py-1 font-normal">Opened</th>
                     <th className="px-2 py-1 font-normal">Closed</th>
                     <th className="px-2 py-1 font-normal">Exit reason</th>
+                    <th className="px-2 py-1 font-normal" title="Max adverse excursion — worst % against the entry price while open">MAE %</th>
+                    <th className="px-2 py-1 font-normal" title="Max favourable excursion — best % in favour while open">MFE %</th>
                     <th className="px-2 py-1 font-normal">P&L</th>
                   </tr>
                 </thead>
@@ -330,6 +441,8 @@ export function BacktestPanel() {
                           {t.reason}
                         </span>
                       </td>
+                      <td className="px-2 py-1 font-mono text-bear/90">{t.mae != null ? `${fmtNumber(t.mae, 2)}` : "—"}</td>
+                      <td className="px-2 py-1 font-mono text-bull/90">{t.mfe != null ? `${fmtNumber(t.mfe, 2)}` : "—"}</td>
                       <td className={cn("px-2 py-1 font-mono font-semibold", t.pnl >= 0 ? "text-bull" : "text-bear")}>
                         {t.pnl >= 0 ? "+" : ""}${fmtNumber(t.pnl, 2)}
                       </td>
@@ -351,6 +464,29 @@ export function BacktestPanel() {
           trades={result.trades}
           initial={result.initial_capital}
           onClose={() => setMcOpen(false)}
+        />
+      )}
+
+      {optOpen && (
+        <OptimizeDialog
+          source={source}
+          symbol={symbol}
+          timeframe={timeframe}
+          cash={cash}
+          leverage={leverage}
+          onApply={(inputs) => {
+            setOptOpen(false);
+            run(inputs);
+          }}
+          onClose={() => setOptOpen(false)}
+        />
+      )}
+
+      {heatOpen && result && (
+        <MonthlyHeatmap
+          equityCurve={result.equity_curve}
+          initialCapital={result.initial_capital}
+          onClose={() => setHeatOpen(false)}
         />
       )}
     </div>

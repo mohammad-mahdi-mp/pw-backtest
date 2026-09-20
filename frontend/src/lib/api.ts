@@ -4,6 +4,7 @@ import type {
   BacktestResult,
   BacktestRunSummary,
   Bar,
+  OptimizeResponse,
   ReplayEvent,
   ScreenerRow,
   SessionDetail,
@@ -116,8 +117,25 @@ export const api = {
     timeframe: string;
     cash?: number;
     leverage?: number;
+    inputs?: Record<string, number | boolean>;
   }) =>
     request<BacktestResult | { ok: false; error: string }>("/api/backtest/run", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  optimizeBacktest: (payload: {
+    source: string;
+    symbol: string;
+    timeframe: string;
+    cash?: number;
+    leverage?: number;
+    grid: Record<string, (number | boolean)[]>;
+    metric: string;
+    mode: "grid" | "walkforward";
+    train_bars?: number;
+    test_bars?: number;
+  }) =>
+    request<OptimizeResponse>("/api/backtest/optimize", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

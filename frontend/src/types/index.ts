@@ -159,6 +159,10 @@ export type BacktestTrade = {
   pnl: number;
   pnl_pct: number;
   reason: "signal" | "stop" | "target";
+  /** max adverse excursion, % of entry price (<= 0); open trades lack this */
+  mae?: number;
+  /** max favourable excursion, % of entry price (>= 0); open trades lack this */
+  mfe?: number;
 };
 
 export type BacktestMetrics = {
@@ -211,3 +215,58 @@ export type BacktestRunSummary = {
   win_rate: number | null;
   trades: number | null;
 };
+
+// ---- optimizer ----
+
+export type OptimizeRow = {
+  params: Record<string, number | boolean>;
+  net_pnl: number;
+  return_pct: number;
+  max_drawdown_pct: number;
+  sharpe: number;
+  sortino: number;
+  profit_factor: number | null;
+  trades: number;
+  win_rate: number;
+  cagr_pct: number;
+};
+
+export type WalkforwardFold = {
+  params: Record<string, number | boolean>;
+  train: { start: number; end: number; metric: number };
+  test: { start: number; end: number; net_pnl: number; return_pct: number; trades: number } | null;
+};
+
+export type WalkforwardSummary = {
+  initial_capital: number;
+  final_equity: number;
+  net_pnl: number;
+  return_pct: number;
+  max_drawdown_pct: number;
+  trades: number;
+  win_rate: number;
+  profit_factor: number | null;
+};
+
+export type OptimizeResponse =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      mode: "grid";
+      metric: string;
+      inputs: string[];
+      runs: number;
+      rows: OptimizeRow[];
+      best: OptimizeRow | null;
+    }
+  | {
+      ok: true;
+      mode: "walkforward";
+      metric: string;
+      inputs: string[];
+      folds: number;
+      rows: WalkforwardFold[];
+      summary: WalkforwardSummary;
+      oos_trades: BacktestTrade[];
+      oos_equity_curve: CurvePoint[];
+    };

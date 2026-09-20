@@ -362,9 +362,12 @@ Keyboard shortcuts (TradingView-like):
 - [x] Strategy execution engine (`app/pine/strategy.py`): vectorized signal precompute +
       bar-by-bar VirtualBroker loop; next-bar-open fills; percent-of-equity/fixed sizing;
       pyramiding=0; strategy.exit stop/limit (trailing updates each bar)
-- [ ] Monthly returns heatmap, MAE/MFE per trade
-- [ ] Walk-forward / simple optimization (grid params)
-- [ ] Export results to CSV/JSON
+- [x] Monthly returns heatmap, MAE/MFE per trade (heatmap modal from equity curve; per-trade
+      `mae`/`mfe` excursions vs entry price in `strategy.py` + trades table columns)
+- [x] Walk-forward / simple optimization (grid params) — `POST /api/backtest/optimize`
+      (grid sweep ≤200 combos, ranked & sortable; walk-forward folds with stitched OOS equity),
+      OptimizeDialog with per-input from/step/to range builder, click-to-apply params
+- [x] Export results to CSV/JSON (trades CSV incl. MAE/MFE columns; full result JSON)
 
 ### Phase 6 — Paper Trading & Live (2 days later)
 - [x] Paper account with live prices — sessions auto-refresh data from Binance (crypto) /

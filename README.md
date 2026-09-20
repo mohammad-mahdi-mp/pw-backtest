@@ -19,13 +19,10 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | 2     | Charts (Lightweight Charts v4)  | ✅ Candlesticks + indicator overlays + synced sub-panes |
 | 3     | Replay / manual trading engine  | ✅ **Done** — full VirtualBroker: market/limit/stop fills, SL/TP auto-triggers, netting/flip, commissions, margin, P&L & equity |
 | 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
-| 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list, saved runs |
+| 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list with MAE/MFE, saved runs, grid & walk-forward optimizer, monthly heatmap, CSV/JSON export |
 | 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
 | 7     | Polish — drawings, screener, MC | ✅ **Done** — chart drawings, local-data screener, Monte Carlo, desktop notifications, multi-chart layouts, shortcut editor, layout persistence |
 | docs  | VitePress documentation site     | ✅ `docs/` — guide (charts, replay, paper, backtest), Pine reference, REST API |
-| 5     | Automated backtest              | ⏳ Placeholder |
-| 6     | Paper / live trading            | ⏳ Planned     |
-| 7     | Polish (drawings, screener, …)  | ⏳ Planned     |
 
 ## Quick start (Fedora 44)
 

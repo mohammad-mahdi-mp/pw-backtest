@@ -44,6 +44,7 @@ def run_strategy(
     leverage: int = 100,
     symbol: str = "",
     timeframe: str = "1h",
+    inputs: Optional[dict] = None,
 ) -> dict:
     ir = compile_pine(source)
     if ir["kind"] != "strategy":
@@ -60,10 +61,22 @@ def run_strategy(
     initial = float(cash) if cash else params["initial_capital"]
 
     env: dict[str, Any] = {inp["name"]: inp["default"] for inp in ir["inputs"]}
+    # caller-supplied input overrides (optimizer / API)
+    override: dict[str, Any] = {}
+    if inputs:
+        known = {inp["name"] for inp in ir["inputs"]}
+        for k, v in inputs.items():
+            if k in known:
+                env[k] = v
+                override[k] = v
 
     # ---- phase 1: vectorized precompute (assignments + if conditions) ----
     for st in ir["statements"]:
         if st["kind"] == "assign":
+            if st["name"] in override:
+                # input declaration with caller-supplied value — keep the override
+                env[st["name"]] = override[st["name"]]
+                continue
             env[st["name"]] = eval_expr(st["expr"], df, env)
         elif st["kind"] == "if":
             cond = eval_expr(st["cond"], df, env)
@@ -165,10 +178,36 @@ def run_strategy(
 
     # ---- trades & open position from events ----
     reason_map = {"order": "signal", "sl": "stop", "tp": "target"}
+    ts_idx = df["timestamp"]
+    lows = df["low"].values
+    highs = df["high"].values
+
+    def _excursions(e: dict) -> tuple[float, float]:
+        """(MAE %, MFE %) of a closed chunk — max adverse / favourable move vs entry."""
+        try:
+            i0 = ts_idx.searchsorted(datetime.fromisoformat(e["entry_time"]), "left")
+            i1 = ts_idx.searchsorted(datetime.fromisoformat(e["exit_time"]), "right")
+        except Exception:  # noqa: BLE001
+            return 0.0, 0.0
+        if i1 <= i0 or i0 >= len(lows):
+            return 0.0, 0.0
+        i1 = min(i1, len(lows))
+        ep = e["entry_price"]
+        if ep <= 0:
+            return 0.0, 0.0
+        if e["side"] == "long":
+            mae = (lows[i0:i1].min() - ep) / ep * 100
+            mfe = (highs[i0:i1].max() - ep) / ep * 100
+        else:
+            mae = (ep - highs[i0:i1].max()) / ep * 100
+            mfe = (ep - lows[i0:i1].min()) / ep * 100
+        return round(float(mae), 3), round(float(mfe), 3)
+
     trades = []
     for e in broker.events:
         if e["type"] in ("position_closed", "position_reduced"):
             notional = e["entry_price"] * e["closed_size"] * cfg.multiplier
+            mae, mfe = _excursions(e)
             trades.append({
                 "entry_time": e["entry_time"],
                 "exit_time": e["exit_time"],
@@ -179,6 +218,8 @@ def run_strategy(
                 "pnl": e["pnl"],
                 "pnl_pct": (e["pnl"] / notional * 100) if notional else 0.0,
                 "reason": reason_map.get(e["reason"], e["reason"]),
+                "mae": mae,
+                "mfe": mfe,
             })
 
     open_position = None
