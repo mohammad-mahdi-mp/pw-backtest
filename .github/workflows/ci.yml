@@ -80,7 +80,11 @@ jobs:
             printf '::error::%s\n' "${line:0:400}"
           done || true
           printf '::error::=== pwcore.log tail ===\n' || true
-          tail -n 30 /tmp/pwcore.log | while read -r line; do
+          tail -n 80 /tmp/pwcore.log | while read -r line; do
+            printf '::error::%s\n' "${line:0:400}"
+          done || true
+          printf '::error::=== pwcore summaries/failures ===\n' || true
+          { grep -nE "test result|^failures:|^    [a-z_]+::|panicked at|FAILED" /tmp/pwcore.log | head -40; } | while read -r line; do
             printf '::error::%s\n' "${line:0:400}"
           done || true
           printf '::error::=== parity.log tail ===\n' || true
