@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Early rust gate (sandbox has no crates.io access, so GitHub Actions is the
+  # verify environment for Rust until the full P0-T04 CI lands with Fedora
+  # rpm containers, cargo-deny, and the §1.7 manifest check).
+  rust:
+    name: Rust (clippy + tests + parity gate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clippy + rustfmt
+        run: rustup component add clippy rustfmt
+
+      - name: Clippy (strict, -D warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: pw-core contract tests
+        run: cargo test -p pw-core
+
+      - name: pw-engine parity gate (50 expected failures until P3-T01)
+        run: bash ../scripts/check-engine-expected-failures.sh
