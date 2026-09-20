@@ -132,3 +132,66 @@ export type MarkerSpec = {
   shape: "arrowUp" | "arrowDown" | "circle";
   text: string;
 };
+
+export type BacktestTrade = {
+  entry_time: string;
+  exit_time: string;
+  side: "long" | "short";
+  size: number;
+  entry_price: number;
+  exit_price: number;
+  pnl: number;
+  pnl_pct: number;
+  reason: "signal" | "stop" | "target";
+};
+
+export type BacktestMetrics = {
+  net_pnl: number;
+  final_equity: number;
+  return_pct: number;
+  max_drawdown_pct: number;
+  sharpe: number;
+  sortino: number;
+  cagr_pct: number;
+  trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  profit_factor: number | null;
+  expectancy: number;
+  avg_trade: number;
+  best_trade: number;
+  worst_trade: number;
+  max_consecutive_wins: number;
+  max_consecutive_losses: number;
+  has_open_position: boolean;
+  bars_processed: number;
+};
+
+export type CurvePoint = { time: number; value: number };
+
+export type BacktestResult = {
+  ok: true;
+  id: number;
+  name: string;
+  kind: string;
+  initial_capital: number;
+  leverage: number;
+  metrics: BacktestMetrics;
+  equity_curve: CurvePoint[];
+  drawdown_curve: CurvePoint[];
+  trades: BacktestTrade[];
+  open_position: { side: string; size: number; entry_price: number; unrealized: number } | null;
+};
+
+export type BacktestRunSummary = {
+  id: number;
+  name: string;
+  symbol: string;
+  timeframe: string;
+  created_at: string;
+  net_pnl: number | null;
+  return_pct: number | null;
+  win_rate: number | null;
+  trades: number | null;
+};

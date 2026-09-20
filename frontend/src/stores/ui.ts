@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type ChartType = "candles" | "bars" | "line" | "area" | "heikin";
-export type BottomTab = "trade" | "pine" | "account";
+export type BottomTab = "trade" | "pine" | "backtest" | "account";
 
 export type ActiveIndicator = {
   id: string;
@@ -9,6 +9,8 @@ export type ActiveIndicator = {
   source: string;
   overlay: boolean;
 };
+
+export type BacktestRequest = { source: string; name: string; key: number };
 
 export type ReplayStatePatch = {
   replayActive?: boolean;
@@ -24,6 +26,7 @@ type UIState = {
   chartType: ChartType;
   showVolume: boolean;
   indicators: ActiveIndicator[];
+  backtestRequest: BacktestRequest | null;
 
   replayActive: boolean;
   replayPlaying: boolean;
@@ -38,6 +41,7 @@ type UIState = {
   addIndicator: (i: ActiveIndicator) => void;
   removeIndicator: (id: string) => void;
   setReplay: (p: ReplayStatePatch) => void;
+  setBacktestRequest: (r: BacktestRequest | null) => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -47,6 +51,7 @@ export const useUIStore = create<UIState>((set) => ({
   chartType: "candles",
   showVolume: true,
   indicators: [],
+  backtestRequest: null,
 
   replayActive: false,
   replayPlaying: false,
@@ -62,4 +67,5 @@ export const useUIStore = create<UIState>((set) => ({
   addIndicator: (i) => set((s) => ({ indicators: [...s.indicators, i] })),
   removeIndicator: (id) => set((s) => ({ indicators: s.indicators.filter((x) => x.id !== id) })),
   setReplay: (p) => set(p),
+  setBacktestRequest: (backtestRequest) => set({ backtestRequest }),
 }));

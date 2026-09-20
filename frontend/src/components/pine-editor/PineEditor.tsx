@@ -3,7 +3,7 @@ import Editor from "@monaco-editor/react";
 import type { Monaco } from "@monaco-editor/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
 
@@ -33,8 +33,7 @@ export function PineEditor({ onAddToChart }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pine-scripts"] }),
   });
 
-  const registerLanguage = (monaco: Monaco) => {
-    if (monaco.languages.getLanguages().some((l) => l.id === "pine")) return;
+  const registerLanguage = (monaco: Monaco) => {    if (monaco.languages.getLanguages().some((l) => l.id === "pine")) return;
     monaco.languages.register({ id: "pine" });
     monaco.languages.setMonarchTokensProvider("pine", {
       keywords: [
@@ -99,6 +98,16 @@ export function PineEditor({ onAddToChart }: Props) {
           className="flex items-center gap-1 h-6 px-2 rounded bg-primary/20 text-primary text-[12px] font-semibold hover:bg-primary/30"
         >
           <Plus className="w-3.5 h-3.5" /> Add to chart
+        </button>
+        <button
+          onClick={() => {
+            useUIStore.getState().setBacktestRequest({ source, name, key: Date.now() });
+            useUIStore.getState().setBottomTab("backtest");
+          }}
+          className="flex items-center gap-1 h-6 px-2 rounded text-[12px] text-[#d1d4dc] hover:bg-[#2a2e39] font-semibold"
+          title="Backtest this script (requires a strategy() declaration)"
+        >
+          <FlaskConical className="w-3.5 h-3.5 text-primary" /> Backtest
         </button>
         <button
           onClick={handleSave}

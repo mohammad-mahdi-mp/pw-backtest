@@ -30,7 +30,8 @@ async def init_db() -> None:
     """Create all tables on startup + lightweight migrations for existing DBs."""
     from sqlalchemy import text
 
-    from app.models import symbol, trade, order, script, session as session_model  # noqa: F401
+    from app.models import symbol, trade, order, script, backtest_run  # noqa: F401
+    from app.models import session as session_model  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

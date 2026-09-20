@@ -126,9 +126,25 @@ class VirtualBroker:
         self._apply_fill(order, px, t)
 
     # ---------- bar processing ----------
-    def on_bar(self, bar: dict) -> None:
+    def on_bar(self, bar: dict, open_orders: Optional[list[PendingOrder]] = None) -> None:
+        """Process one bar.
+
+        open_orders: market orders queued at the previous bar's close — they
+        fill at this bar's OPEN (Pine strategy semantics), before pending
+        limit/stop fills and SL/TP checks.
+        """
         t = datetime.utcfromtimestamp(bar["time"])
         o, h, l, c = bar["open"], bar["high"], bar["low"], bar["close"]
+
+        # 0) queued market orders fill at this bar's open
+        if open_orders:
+            for od in open_orders:
+                px = self.buy_fill(o) if od.side == "buy" else self.sell_fill(o)
+                self.events.append({
+                    "type": "order_filled", "order_id": od.id, "side": od.side,
+                    "size": od.size, "order_type": od.order_type, "price": px, "time": t.isoformat(),
+                })
+                self._apply_fill(od, px, t)
 
         # 1) pending limit/stop fills
         still: list[PendingOrder] = []

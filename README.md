@@ -18,7 +18,8 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | 1     | Data layer (CCXT/Yahoo/OANDA/IBKR, parquet storage) | ✅ Working (CCXT/Yahoo live; OANDA/IBKR need keys/TWS) |
 | 2     | Charts (Lightweight Charts v4)  | ✅ Candlesticks + indicator overlays + synced sub-panes |
 | 3     | Replay / manual trading engine  | ✅ **Done** — full VirtualBroker: market/limit/stop fills, SL/TP auto-triggers, netting/flip, commissions, margin, P&L & equity |
-| 4     | Pine Script engine              | ✅ MVP: sma/ema/wma/rma/rsi/macd/bb/atr/stoch/highest/lowest, inputs, colors, inline plots |
+| 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
+| 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list, saved runs |
 | 5     | Automated backtest              | ⏳ Placeholder |
 | 6     | Paper / live trading            | ⏳ Planned     |
 | 7     | Polish (drawings, screener, …)  | ⏳ Planned     |
@@ -57,12 +58,18 @@ pnpm dev
 1. **Symbol / timeframe switcher** — type `BTC/USDT`, `ETH/USDT`, `EUR/USD`, `AAPL`, …
 2. **Load Data** button — downloads historical candles from Binance (crypto) or Yahoo (stocks) into `data/market/.../*.parquet`. Offline? Run `python scripts/seed_sample_data.py` for demo data (BTC, ETH, EUR/USD).
 3. **Interactive candlestick chart** — pan/zoom/crosshair with OHLC tooltip (TradingView Lightweight Charts).
-4. **Pine editor at the bottom** — write an indicator and hit **Run** to plot overlays / sub-panes. Supported: `ta.sma/ema/wma/rma/rsi/macd/bb/atr/stoch/highest/lowest`, `input.*`, `color.*`, inline `plot(ta.sma(close, 20))`.
+4. **Pine editor at the bottom** — write an indicator and hit **Run** to plot overlays / sub-panes. Supported: `ta.sma/ema/wma/rma/rsi/macd/bb/atr/stoch/highest/lowest/vwap`, `ta.crossover/crossunder`, full expressions (ternary, and/or/not, math.*), `input.*`, `color.*`, inline `plot(ta.sma(close, 20))`.
 5. **Bar Replay (FXReply-style)** — press **Replay**: the future is hidden; step/play candle-by-candle
    (Space = play/pause, ←/→ = step, X = close position). Place market/limit/stop orders with
    SL/TP from the Trade tab — fills, stop-outs and take-profits are simulated bar-by-bar with
    spread, slippage and commissions. Entry/SL/TP lines, trade markers and P&L appear on the chart.
-6. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
+6. **Automated strategy backtesting** — write a `strategy()` script in the Pine editor, press
+   **Backtest**, and it runs bar-by-bar over the same VirtualBroker engine (spread, slippage,
+   commissions, margin). `strategy.entry/close/exit(stop=, limit=)/cancel_all` are supported with
+   next-bar-open fills, percent-of-equity or fixed sizing and pyramiding=0. The Backtest tab shows
+   net P&L, Sharpe, Sortino, CAGR, max drawdown, profit factor, win rate, expectancy, streaks,
+   an equity + drawdown chart, the full trade list with exit reasons, and a history of saved runs.
+7. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
 
 ## Project layout
 

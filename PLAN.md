@@ -341,19 +341,30 @@ Keyboard shortcuts (TradingView-like):
 - [x] Runtime on pandas/numpy: sma, ema, wma, rma, rsi, macd, bb, atr, stoch, highest, lowest
 - [x] Inline plots `plot(ta.sma(close, 20))` + multi-output (macd/bb → 3 lines each)
 - [x] Monaco editor w/ Pine syntax highlighting + compile diagnostics
-- [ ] Multi-script per chart, add/remove indicator UI
-- [ ] `strategy.*` builtins → hook into backtest engine
-- [ ] `ta.crossover/under`, `ta.valuewhen`, `ta.vwap`, `ta.supertrend`
-- [ ] `if/else`, `for`, `var` control flow
+- [x] **Full expression parser**: arithmetic, comparisons, and/or/not, ternary, parenthesized
+      expressions, `ta.crossover/crossunder`, `math.*`, `ta.vwap/change/stdev`
+- [x] **`strategy.*` builtins wired to the VirtualBroker**: `strategy.entry/close/close_all/
+      exit(stop=, limit=)/cancel_all`, if-blocks with indented bodies, next-bar-open fills,
+      pyramiding=0, percent-of-equity & fixed sizing, `initial_capital` /
+      `default_qty_type` / `default_qty_value` params
+- [x] Indicator UI: built-in library dialog + removable legend chips
+- [ ] `if/else`, `for`, `var` control flow in indicator context (strategy bodies done)
 - [ ] Python strategy API for edge cases
 
 ### Phase 5 — Automated Backtest (2–3 days)
-- [ ] Backtest runner UI (pick script, symbol, TF, range, capital, fee model → run)
-- [ ] Equity curve, drawdown, monthly returns heatmap
-- [ ] Trade list with MAE/MFE, filterable
-- [ ] Metrics dashboard (Sharpe, Sortino, CAGR, MaxDD, Profit Factor, Expectancy …)
+- [x] Backtest runner UI (Backtest bottom-panel: script from Pine Editor or sample template,
+      symbol/TF from chart, capital + leverage inputs → run)
+- [x] Equity curve, drawdown charts (lightweight-charts area series)
+- [x] Trade list with entry/exit, exit reason (signal/stop/target), P&L
+- [x] Metrics dashboard (Sharpe, Sortino, CAGR, MaxDD, Profit Factor, Expectancy, win rate,
+      streaks — `app/backtest/metrics.py`)
+- [x] Save backtest runs to DB (`backtest_runs`), history dropdown, reload past runs
+- [x] Strategy execution engine (`app/pine/strategy.py`): vectorized signal precompute +
+      bar-by-bar VirtualBroker loop; next-bar-open fills; percent-of-equity/fixed sizing;
+      pyramiding=0; strategy.exit stop/limit (trailing updates each bar)
+- [ ] Monthly returns heatmap, MAE/MFE per trade
 - [ ] Walk-forward / simple optimization (grid params)
-- [ ] Export results to CSV/JSON, save backtest runs to DB
+- [ ] Export results to CSV/JSON
 
 ### Phase 6 — Paper Trading & Live (2 days later)
 - [ ] Real-time WebSocket feed per symbol

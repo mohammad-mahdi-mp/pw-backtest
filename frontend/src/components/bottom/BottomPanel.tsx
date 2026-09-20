@@ -2,12 +2,14 @@ import { ChevronDown } from "lucide-react";
 import { useUIStore, type BottomTab } from "@/stores/ui";
 import { TradePanel } from "@/components/bottom/TradePanel";
 import { AccountPanel } from "@/components/bottom/AccountPanel";
+import { BacktestPanel } from "@/components/bottom/BacktestPanel";
 import { PineEditor } from "@/components/pine-editor/PineEditor";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: BottomTab; label: string }[] = [
   { id: "trade", label: "Trade" },
   { id: "pine", label: "Pine Editor" },
+  { id: "backtest", label: "Backtest" },
   { id: "account", label: "Account" },
 ];
 
@@ -15,7 +17,12 @@ export function BottomPanel() {
   const { bottomTab, setBottomTab, toggleBottomPanel } = useUIStore();
 
   return (
-    <div className="h-[240px] shrink-0 flex flex-col bg-tvpanel border-t border-tvborder">
+    <div
+      className={cn(
+        "shrink-0 flex flex-col bg-tvpanel border-t border-tvborder",
+        bottomTab === "backtest" ? "h-[400px]" : "h-[240px]"
+      )}
+    >
       {/* Tab header */}
       <div className="h-[30px] shrink-0 flex items-end px-1 border-b border-tvborder">
         {TABS.map((t) => (
@@ -46,6 +53,7 @@ export function BottomPanel() {
       <div className="flex-1 min-h-0">
         {bottomTab === "trade" && <TradePanel />}
         {bottomTab === "pine" && <PineEditor />}
+        {bottomTab === "backtest" && <BacktestPanel />}
         {bottomTab === "account" && <AccountPanel />}
       </div>
     </div>

@@ -1,6 +1,13 @@
 const BASE = "";  // same origin via vite proxy
 
-import type { Bar, ReplayEvent, SessionDetail, Symbol as SymbolInfo } from "@/types";
+import type {
+  BacktestResult,
+  BacktestRunSummary,
+  Bar,
+  ReplayEvent,
+  SessionDetail,
+  Symbol as SymbolInfo,
+} from "@/types";
 
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -84,5 +91,17 @@ export const api = {
     }),
 
   // Backtest
-  runBacktest: (payload: any) => request<any>("/api/backtest/run", { method: "POST", body: JSON.stringify(payload) }),
+  runBacktest: (payload: {
+    source: string;
+    symbol: string;
+    timeframe: string;
+    cash?: number;
+    leverage?: number;
+  }) =>
+    request<BacktestResult | { ok: false; error: string }>("/api/backtest/run", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  listBacktestRuns: () => request<BacktestRunSummary[]>("/api/backtest/runs"),
+  getBacktestRun: (id: number) => request<BacktestResult>(`/api/backtest/runs/${id}`),
 };
