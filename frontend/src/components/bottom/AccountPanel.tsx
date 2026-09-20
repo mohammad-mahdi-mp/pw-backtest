@@ -3,10 +3,11 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app";
 import { fmtMoney, fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { SessionDetail } from "@/types";
 
 export function AccountPanel() {
   const { sessionId } = useAppStore();
-  const { data } = useQuery({
+  const { data } = useQuery<SessionDetail>({
     queryKey: ["session", sessionId],
     queryFn: () => api.getSession(sessionId!),
     enabled: !!sessionId,
@@ -21,39 +22,38 @@ export function AccountPanel() {
     );
   }
 
-  const trades = data.trades ?? [];
-  const wins = trades.filter((t) => t.pnl > 0);
-  const losses = trades.filter((t) => t.pnl <= 0);
-  const totalPnl = trades.reduce((s, t) => s + t.pnl, 0);
-  const winRate = trades.length ? (wins.length / trades.length) * 100 : 0;
+  const s = data.stats;
+  const pos = data.position;
 
-  const stats = [
-    { label: "Equity", value: fmtMoney(data.equity ?? 0), color: "#d1d4dc" },
-    { label: "Cash", value: fmtMoney(data.cash ?? 0), color: "#d1d4dc" },
+  const cards = [
+    { label: "Equity", value: fmtMoney(data.equity), color: data.equity >= s.balance ? "#26a69a" : "#ef5350" },
+    { label: "Balance", value: fmtMoney(s.balance), color: "#d1d4dc" },
+    { label: "Unrealized", value: pos ? `${pos.unrealized >= 0 ? "+" : ""}${fmtMoney(pos.unrealized)}` : "—", color: pos ? (pos.unrealized >= 0 ? "#26a69a" : "#ef5350") : "#787b86" },
     { label: "Leverage", value: `1:${data.leverage}`, color: "#d1d4dc" },
-    { label: "Closed Trades", value: String(trades.length), color: "#d1d4dc" },
+    { label: "Closed Trades", value: String(s.closed_trades), color: "#d1d4dc" },
+    { label: "Win Rate", value: `${fmtNumber(s.win_rate, 1)}%`, color: s.win_rate >= 50 ? "#26a69a" : "#ef5350" },
+    { label: "Wins / Losses", value: `${s.wins} / ${s.losses}`, color: "#d1d4dc" },
+    { label: "Avg Win", value: fmtMoney(s.avg_win), color: "#26a69a" },
+    { label: "Avg Loss", value: fmtMoney(s.avg_loss), color: "#ef5350" },
     {
-      label: "Win Rate",
-      value: `${fmtNumber(winRate, 1)}%`,
-      color: winRate >= 50 ? "#26a69a" : "#ef5350",
+      label: "Profit Factor",
+      value: s.profit_factor != null ? fmtNumber(s.profit_factor, 2) : "—",
+      color: s.profit_factor != null && s.profit_factor >= 1 ? "#26a69a" : "#ef5350",
     },
-    { label: "Wins / Losses", value: `${wins.length} / ${losses.length}`, color: "#d1d4dc" },
-    {
-      label: "Total P&L",
-      value: `${totalPnl >= 0 ? "+" : ""}${fmtMoney(totalPnl)}`,
-      color: totalPnl >= 0 ? "#26a69a" : "#ef5350",
-    },
-    { label: "Symbol", value: data.symbol, color: "#d1d4dc" },
-    { label: "Timeframe", value: data.timeframe, color: "#d1d4dc" },
+    { label: "Total P&L", value: `${s.total_pnl >= 0 ? "+" : ""}${fmtMoney(s.total_pnl)}`, color: s.total_pnl >= 0 ? "#26a69a" : "#ef5350" },
+    { label: "Costs", value: `${data.commission_mode === "per_lot" ? `$${fmtNumber(data.commission_value, 2)}/lot` : data.commission_mode === "percent" ? `${fmtNumber(data.commission_value * 100, 2)}%` : "none"} · spread ${fmtNumber(data.spread_pips, 1)}p`, color: "#787b86", small: true },
   ];
 
   return (
-    <div className="p-4 grid grid-cols-3 gap-3 max-w-[720px]">
-      {stats.map((s) => (
-        <div key={s.label} className="bg-[#131722] border border-tvborder rounded p-3">
-          <div className="text-[11px] text-[#787b86] uppercase tracking-wide">{s.label}</div>
-          <div className={cn("text-[18px] font-bold mt-0.5")} style={{ color: s.color }}>
-            {s.value}
+    <div className="p-3 grid grid-cols-4 gap-2 max-w-[900px]">
+      {cards.map((c) => (
+        <div key={c.label} className="bg-[#131722] border border-tvborder rounded p-2.5">
+          <div className="text-[10px] text-[#787b86] uppercase tracking-wide">{c.label}</div>
+          <div
+            className={cn("font-bold mt-0.5", c.small ? "text-[12px]" : "text-[17px]")}
+            style={{ color: c.color }}
+          >
+            {c.value}
           </div>
         </div>
       ))}

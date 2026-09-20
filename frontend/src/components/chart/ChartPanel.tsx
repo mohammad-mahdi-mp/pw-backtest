@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Chart } from "@/components/charts/Chart";
-import type { Bar, PaneSpec, PlotSeries } from "@/types";
+import type { Bar, PaneSpec, PlotSeries, PriceLineSpec, MarkerSpec } from "@/types";
 import type { ActiveIndicator } from "@/stores/ui";
 import { useUIStore } from "@/stores/ui";
 import { useAppStore } from "@/stores/app";
@@ -15,9 +15,20 @@ type Props = {
   indicators: ActiveIndicator[];
   indicatorValues: Record<string, string>;
   onRemoveIndicator: (id: string) => void;
+  priceLines?: PriceLineSpec[];
+  markers?: MarkerSpec[];
 };
 
-export function ChartPanel({ bars, overlays, panes, indicators, indicatorValues, onRemoveIndicator }: Props) {
+export function ChartPanel({
+  bars,
+  overlays,
+  panes,
+  indicators,
+  indicatorValues,
+  onRemoveIndicator,
+  priceLines = [],
+  markers = [],
+}: Props) {
   const { symbol, timeframe } = useAppStore();
   const { chartType, showVolume } = useChartOpts();
   const [hoverBar, setHoverBar] = useState<Bar | null>(null);
@@ -39,6 +50,8 @@ export function ChartPanel({ bars, overlays, panes, indicators, indicatorValues,
         precision={precision}
         minMove={minMove}
         watermark={`${symbol} · ${timeframe}`}
+        priceLines={priceLines}
+        markers={markers}
         onCrosshair={setHoverBar}
       />
 

@@ -1,6 +1,6 @@
 const BASE = "";  // same origin via vite proxy
 
-import type { Bar, SessionDetail, Symbol as SymbolInfo } from "@/types";
+import type { Bar, ReplayEvent, SessionDetail, Symbol as SymbolInfo } from "@/types";
 
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -39,14 +39,34 @@ export const api = {
   listSessions: () => request<any[]>("/api/replay/sessions"),
   getSession: (id: number) => request<SessionDetail>(`/api/replay/sessions/${id}`),
   placeOrder: (sid: number, payload: any) =>
-    request<{ id: number; status: string }>(`/api/replay/sessions/${sid}/orders`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+    request<{ id: number; status: string; fill_price?: number; events: ReplayEvent[] }>(
+      `/api/replay/sessions/${sid}/orders`,
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
   advance: (sid: number, bars = 1) =>
-    request<{ current_time: string }>(`/api/replay/sessions/${sid}/advance`, {
+    request<{ current_time: string; equity: number; balance: number; position: any; events: ReplayEvent[] }>(
+      `/api/replay/sessions/${sid}/advance`,
+      { method: "POST", body: JSON.stringify({ bars }) }
+    ),
+  closePosition: (sid: number) =>
+    request<{ closed: boolean; pnl: number; events: ReplayEvent[] }>(`/api/replay/sessions/${sid}/close`, {
       method: "POST",
-      body: JSON.stringify({ bars }),
+      body: "{}",
+    }),
+  cancelOrder: (sid: number, oid: number) =>
+    request<{ id: number; status: string }>(`/api/replay/sessions/${sid}/orders/${oid}/cancel`, {
+      method: "POST",
+      body: "{}",
+    }),
+  updatePosition: (sid: number, payload: { stop_loss?: number | null; take_profit?: number | null }) =>
+    request<{ trade_id: number; stop_loss: number | null; take_profit: number | null }>(
+      `/api/replay/sessions/${sid}/position`,
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
+  setTradeNote: (sid: number, tid: number, note: string) =>
+    request<{ id: number; note: string }>(`/api/replay/sessions/${sid}/trades/${tid}/note`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
     }),
 
   // Pine

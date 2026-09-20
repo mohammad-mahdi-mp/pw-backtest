@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
-import { createChart, ColorType } from "lightweight-charts";
+import { createChart, ColorType, LineStyle } from "lightweight-charts";
 import type {
   IChartApi,
+  IPriceLine,
   ISeriesApi,
   Time,
   CandlestickData,
@@ -9,8 +10,9 @@ import type {
   LineData,
   AreaData,
   HistogramData,
+  SeriesMarker,
 } from "lightweight-charts";
-import type { Bar, PlotSeries, PaneSpec } from "@/types";
+import type { Bar, PlotSeries, PaneSpec, PriceLineSpec, MarkerSpec } from "@/types";
 import type { ChartType } from "@/stores/ui";
 
 const C = {
@@ -53,6 +55,8 @@ type Props = {
   precision: number;
   minMove: number;
   watermark: string;
+  priceLines?: PriceLineSpec[];
+  markers?: MarkerSpec[];
   onCrosshair?: (b: Bar | null) => void;
 };
 
@@ -65,6 +69,8 @@ export function Chart({
   precision,
   minMove,
   watermark,
+  priceLines = [],
+  markers = [],
   onCrosshair,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +78,7 @@ export function Chart({
   const mainRef = useRef<ISeriesApi<any> | null>(null);
   const volRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const overlayRefs = useRef<ISeriesApi<any>[]>([]);
+  const priceLineRefs = useRef<IPriceLine[]>([]);
   const paneRefs = useRef<HTMLDivElement[]>([]);
   const paneChartRefs = useRef<IChartApi[]>([]);
 
@@ -215,6 +222,48 @@ export function Chart({
     if (bars.length) chart.timeScale().fitContent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, chartType]);
+
+  // ---- price lines (entry / SL / TP / pending orders) ----
+  useEffect(() => {
+    const chart = chartRef.current;
+    const main = mainRef.current;
+    if (!chart || !main) return;
+    priceLineRefs.current.forEach((pl) => {
+      try {
+        main.removePriceLine(pl);
+      } catch {
+        /* series may have been replaced */
+      }
+    });
+    priceLineRefs.current = [];
+    for (const pl of priceLines) {
+      const line = main.createPriceLine({
+        price: pl.price,
+        color: pl.color,
+        lineWidth: 1,
+        lineStyle: pl.dashed === false ? LineStyle.Solid : LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: pl.title,
+      });
+      priceLineRefs.current.push(line);
+    }
+  }, [priceLines, chartType, bars]);
+
+  // ---- trade markers ----
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const sorted = [...markers].sort((a, b) => a.time - b.time);
+    main.setMarkers(
+      sorted.map((m) => ({
+        time: m.time as Time,
+        position: m.position,
+        color: m.color,
+        shape: m.shape,
+        text: m.text,
+      })) as SeriesMarker<Time>[]
+    );
+  }, [markers, chartType, bars]);
 
   // ---- volume ----
   useEffect(() => {

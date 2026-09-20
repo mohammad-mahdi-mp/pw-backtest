@@ -322,12 +322,19 @@ Keyboard shortcuts (TradingView-like):
 - [x] Replay session API (create/list/get/advance) + DB model
 - [x] UI: playback controls, order ticket, positions panel
 - [x] Market order placement w/ SL/TP recorded
-- [ ] Bar-by-bar broker simulation (fills, SL/TP triggers, equity mark-to-market)
-- [ ] Chart shows only bars up to replay cursor (hiding the future)
-- [ ] Play mode with speed (auto-advance timer)
-- [ ] Visualize orders & positions on chart (lines, entry markers, P&L)
-- [ ] Journal: attach note + screenshot to trade; tag system
-- [ ] Trade statistics (win rate, avg win/loss)
+- [x] **Bar-by-bar broker simulation** — VirtualBroker engine: instant market fills
+      (spread+slippage), pending limit/stop triggers (incl. gap opens), SL/TP auto-triggers
+      (SL-first conservative, gap-aware), netting position model (add / reduce / flip),
+      weighted-average entries, margin checks, per-market commissions
+      (forex $/lot, crypto %, stocks none) — 11 unit tests
+- [x] Chart shows only bars up to replay cursor (hiding the future)
+- [x] Play mode with speed ×0.5–×50 + Space/←/→/X hotkeys
+- [x] Visualize orders & positions on chart (entry/SL/TP price lines, pending order lines,
+      entry arrows + exit markers with P&L, live position badge in replay bar)
+- [x] Journal: per-trade notes (persisted)
+- [x] Trade statistics (win rate, avg win/loss, profit factor, equity) + Account tab
+- [x] Session snapshot across requests (state fully DB-backed, processed_time guard
+      prevents double-processing when stepping back & forth)
 
 ### Phase 4 — Pine Script Engine (BIG — 5–8 days, incremental)
 - [x] MVP compiler: `//@version`, `indicator()`, `plot()`, `input.*`, assignments, `ta.*` calls, colors

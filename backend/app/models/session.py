@@ -19,9 +19,10 @@ class ReplaySession(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime)
     current_time: Mapped[datetime] = mapped_column(DateTime)
     end_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    cash: Mapped[float] = mapped_column(Float, default=100_000.0)
-    equity: Mapped[float] = mapped_column(Float, default=100_000.0)
-    commission_mode: Mapped[str] = mapped_column(String, default="per_lot")
+    processed_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # furthest simulated bar
+    cash: Mapped[float] = mapped_column(Float, default=100_000.0)              # balance (realized)
+    equity: Mapped[float] = mapped_column(Float, default=100_000.0)            # balance + unrealized
+    commission_mode: Mapped[str] = mapped_column(String, default="per_lot")    # per_lot | percent | none
     commission_value: Mapped[float] = mapped_column(Float, default=3.0)
     spread_pips: Mapped[float] = mapped_column(Float, default=1.0)
     slippage_pips: Mapped[float] = mapped_column(Float, default=0.5)

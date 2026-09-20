@@ -27,11 +27,18 @@ class Base(DeclarativeBase):
 
 
 async def init_db() -> None:
-    """Create all tables on startup."""
+    """Create all tables on startup + lightweight migrations for existing DBs."""
+    from sqlalchemy import text
+
     from app.models import symbol, trade, order, script, session as session_model  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # --- lightweight migrations (SQLite: ADD COLUMN only) ---
+        result = await conn.execute(text("PRAGMA table_info(replay_sessions)"))
+        cols = [r[1] for r in result.fetchall()]
+        if cols and "processed_time" not in cols:
+            await conn.execute(text("ALTER TABLE replay_sessions ADD COLUMN processed_time DATETIME"))
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

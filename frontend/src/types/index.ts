@@ -16,14 +16,6 @@ export type Symbol = {
   quote_currency?: string;
 };
 
-export type PineScriptMeta = {
-  id: number;
-  name: string;
-  kind: "indicator" | "strategy";
-  version: string;
-  updated_at: string;
-};
-
 export type PlotSeries = {
   id: string;
   title: string;
@@ -38,15 +30,17 @@ export type PaneSpec = {
   series: PlotSeries[];
 };
 
-export type ReplaySession = {
-  id: number;
-  name: string;
-  symbol: string;
-  timeframe: string;
-  current_time: string;
-  cash: number;
-  equity: number;
-  leverage: number;
+export type PositionInfo = {
+  trade_id: number;
+  side: "long" | "short";
+  size: number;
+  entry_price: number;
+  entry_time: string | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  mark_price: number | null;
+  unrealized: number;
+  unrealized_pips: number;
 };
 
 export type OrderInfo = {
@@ -74,6 +68,18 @@ export type TradeInfo = {
   note: string;
 };
 
+export type SessionStats = {
+  balance: number;
+  closed_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  total_pnl: number;
+  avg_win: number;
+  avg_loss: number;
+  profit_factor: number | null;
+};
+
 export type SessionDetail = {
   id: number;
   name: string;
@@ -84,8 +90,45 @@ export type SessionDetail = {
   cash: number;
   equity: number;
   leverage: number;
+  commission_mode: string;
+  commission_value: number;
+  spread_pips: number;
+  slippage_pips: number;
+  position: PositionInfo | null;
   orders: OrderInfo[];
+  pending_orders: OrderInfo[];
   trades: TradeInfo[];
+  stats: SessionStats;
 };
 
-export type ApiError = { ok: false; error: string };
+export type ReplayEvent = {
+  type: string;
+  reason?: string;
+  side?: string;
+  size?: number;
+  closed_size?: number;
+  remaining_size?: number;
+  added_size?: number;
+  price?: number;
+  entry_price?: number;
+  exit_price?: number;
+  pnl?: number;
+  commission?: number;
+  order_id?: number;
+  time?: string;
+};
+
+export type PriceLineSpec = {
+  price: number;
+  color: string;
+  title: string;
+  dashed?: boolean;
+};
+
+export type MarkerSpec = {
+  time: number;
+  position: "aboveBar" | "belowBar";
+  color: string;
+  shape: "arrowUp" | "arrowDown" | "circle";
+  text: string;
+};
