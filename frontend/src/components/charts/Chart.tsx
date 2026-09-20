@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, type ReactNode } from "react";
 import { createChart, ColorType, LineStyle } from "lightweight-charts";
 import type {
   IChartApi,
@@ -46,6 +46,11 @@ function heikinAshi(bars: Bar[]): Bar[] {
   return out;
 }
 
+export type ChartApiHandle = {
+  chart: IChartApi;
+  series: ISeriesApi<any>;
+};
+
 type Props = {
   bars: Bar[];
   chartType: ChartType;
@@ -61,6 +66,10 @@ type Props = {
   resetKey?: string;
   /** paper/live: stick to the realtime edge unless the user scrolled back */
   autoScroll?: boolean;
+  /** fires whenever the main chart+series are (re)created */
+  onApi?: (api: ChartApiHandle) => void;
+  /** rendered above the main chart pane (drawings canvas etc.) */
+  overlay?: ReactNode;
   onCrosshair?: (b: Bar | null) => void;
 };
 
@@ -77,6 +86,8 @@ export function Chart({
   markers = [],
   resetKey,
   autoScroll = false,
+  onApi,
+  overlay,
   onCrosshair,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -242,6 +253,7 @@ export function Chart({
         }
       }
     }
+    if (mainRef.current) onApi?.({ chart, series: mainRef.current });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, chartType]);
 
@@ -400,7 +412,10 @@ export function Chart({
 
   return (
     <div className="flex flex-col w-full h-full min-h-0">
-      <div ref={containerRef} className="flex-1 min-h-0" />
+      <div className="relative flex-1 min-h-0">
+        <div ref={containerRef} className="absolute inset-0" />
+        {overlay}
+      </div>
       {panes.map((p, i) => (
         <div key={p.id} className="border-t" style={{ borderColor: C.border, height: 130 }} >
           <div className="text-[10px] px-2 pt-0.5" style={{ color: "#787b86" }}>

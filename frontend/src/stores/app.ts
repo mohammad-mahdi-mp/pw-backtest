@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 type AppState = {
   symbol: string;
@@ -9,11 +10,20 @@ type AppState = {
   setSessionId: (id: number | null) => void;
 };
 
-export const useAppStore = create<AppState>((set) => ({
-  symbol: "BTC/USDT",
-  timeframe: "1h",
-  sessionId: null,
-  setSymbol: (symbol) => set({ symbol }),
-  setTimeframe: (timeframe) => set({ timeframe }),
-  setSessionId: (sessionId) => set({ sessionId }),
-}));
+/** symbol/timeframe persist across reloads (layout saving, minimal). */
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      symbol: "BTC/USDT",
+      timeframe: "1h",
+      sessionId: null,
+      setSymbol: (symbol) => set({ symbol }),
+      setTimeframe: (timeframe) => set({ timeframe }),
+      setSessionId: (sessionId) => set({ sessionId }),
+    }),
+    {
+      name: "pw-app",
+      partialize: (s) => ({ symbol: s.symbol, timeframe: s.timeframe }),
+    }
+  )
+);

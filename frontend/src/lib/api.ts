@@ -5,6 +5,7 @@ import type {
   BacktestRunSummary,
   Bar,
   ReplayEvent,
+  ScreenerRow,
   SessionDetail,
   Symbol as SymbolInfo,
 } from "@/types";
@@ -101,6 +102,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ source, bars }),
     }),
+
+  // Screener
+  screenerScan: (timeframe: string) =>
+    request<{ timeframe: string; symbols: number; rows: ScreenerRow[] }>(
+      `/api/screener/scan?timeframe=${timeframe}`
+    ),
 
   // Backtest
   runBacktest: (payload: {

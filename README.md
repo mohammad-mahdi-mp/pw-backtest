@@ -21,6 +21,7 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
 | 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list, saved runs |
 | 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
+| 7     | Polish — drawings, screener, MC | ✅ Chart drawings (trend/ray/hline/rect/fib, persisted), local-data screener, Monte Carlo, desktop notifications, layout persistence |
 | 5     | Automated backtest              | ⏳ Placeholder |
 | 6     | Paper / live trading            | ⏳ Planned     |
 | 7     | Polish (drawings, screener, …)  | ⏳ Planned     |
@@ -75,8 +76,20 @@ pnpm dev
    Market orders fill at the live quote; limit/stop orders and SL/TP triggers evaluate on every
    closed candle. A background heartbeat keeps the session running even with the UI closed.
    The floating PAPER pill shows equity and open-position P&L; stopped sessions are read-only.
+   Desktop notifications fire for fills/stop-outs while the tab is in the background.
    Offline? Paper mode degrades gracefully to the last stored bars.
-8. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
+8. **Chart drawings** — the left toolbar is real: trend line, ray, horizontal line, rectangle and
+   Fibonacci retracement. Drawings are anchored to time/price (they survive panning & zooming and
+   extrapolate beyond the data edge), magnet mode snaps to OHLC, click to select, `Del` to remove,
+   `Esc` to cancel, and everything is saved per symbol+timeframe.
+9. **Screener** — the Screener button scans every symbol you have data for: last price, 24h
+   change, RSI(14), price vs SMA20/50/200, volume surge and 200-bar range position. Sort any
+   column, click a row to jump to that chart.
+10. **Monte Carlo** — after a backtest, press the 🎲 button: the trade P&L sequence is
+    bootstrap-resampled 2000× to show the distribution of possible outcomes (median/percentile
+    equity, probability of ending below start, drawdown percentiles).
+11. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
+    Your layout (symbol, timeframe, chart type, indicators, panels) is restored on reload.
 
 ## Project layout
 

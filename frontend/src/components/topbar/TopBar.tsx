@@ -13,12 +13,14 @@ import {
   PanelRight,
   PanelBottom,
   BarChart3,
+  Table2,
   Plus,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app";
 import { useUIStore, type ChartType } from "@/stores/ui";
 import { SymbolSearch } from "@/components/topbar/SymbolSearch";
 import { IndicatorsDialog } from "@/components/topbar/IndicatorsDialog";
+import { ScreenerDialog } from "@/components/topbar/ScreenerDialog";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -57,6 +59,7 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
 
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [indOpen, setIndOpen] = useState(false);
+  const [scrOpen, setScrOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [tfOpen, setTfOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -226,6 +229,16 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
           Indicators
         </button>
 
+        {/* Screener */}
+        <button
+          onClick={() => setScrOpen(true)}
+          className="flex items-center gap-1.5 h-7 px-2 rounded text-[13px] text-[#d1d4dc] hover:bg-[#2a2e39]"
+          title="Screener — scan local data"
+        >
+          <Table2 className="w-4 h-4 text-[#787b86]" />
+          Screener
+        </button>
+
         {/* Load data (our custom, needed for downloads) */}
         <button
           onClick={handleBackfill}
@@ -320,6 +333,7 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
 
       <SymbolSearch open={symbolOpen} onClose={() => setSymbolOpen(false)} />
       <IndicatorsDialog open={indOpen} onClose={() => setIndOpen(false)} />
+      <ScreenerDialog open={scrOpen} onClose={() => setScrOpen(false)} />
     </>
   );
 }

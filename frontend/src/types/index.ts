@@ -135,6 +135,20 @@ export type MarkerSpec = {
   text: string;
 };
 
+export type ScreenerRow = {
+  symbol: string;
+  timeframe: string;
+  last: number;
+  chg_pct: number;
+  rsi: number;
+  above_sma20: boolean | null;
+  above_sma50: boolean | null;
+  above_sma200: boolean | null;
+  vol_ratio: number | null;
+  range_pos: number;
+  bars: number;
+};
+
 export type BacktestTrade = {
   entry_time: string;
   exit_time: string;

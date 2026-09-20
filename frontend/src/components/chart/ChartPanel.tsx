@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Chart } from "@/components/charts/Chart";
+import { Chart, type ChartApiHandle } from "@/components/charts/Chart";
+import { DrawLayer } from "@/components/chart/DrawLayer";
 import type { Bar, PaneSpec, PlotSeries, PriceLineSpec, MarkerSpec } from "@/types";
 import type { ActiveIndicator } from "@/stores/ui";
 import { useUIStore } from "@/stores/ui";
 import { useAppStore } from "@/stores/app";
+import { useDrawStore } from "@/stores/draw";
 import { fmtPrice, pricePrecision } from "@/lib/format";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,13 @@ export function ChartPanel({
   const { chartType, showVolume } = useChartOpts();
   const { replayActive, paperActive } = useUIStore();
   const [hoverBar, setHoverBar] = useState<Bar | null>(null);
+  const [chartApi, setChartApi] = useState<ChartApiHandle | null>(null);
+  const setDrawChartKey = useDrawStore((s) => s.setChartKey);
+
+  // drawings are scoped per symbol+timeframe
+  useEffect(() => {
+    setDrawChartKey(`${symbol}|${timeframe}`);
+  }, [symbol, timeframe, setDrawChartKey]);
 
   const { precision, minMove } = useMemo(() => pricePrecision(symbol), [symbol]);
 
@@ -55,6 +64,8 @@ export function ChartPanel({
         markers={markers}
         resetKey={`${symbol}|${timeframe}|${chartType}|${replayActive ? 1 : 0}`}
         autoScroll={replayActive || paperActive}
+        onApi={setChartApi}
+        overlay={<DrawLayer api={chartApi} bars={bars} />}
         onCrosshair={setHoverBar}
       />
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type ChartType = "candles" | "bars" | "line" | "area" | "heikin";
 export type BottomTab = "trade" | "pine" | "backtest" | "account";
@@ -47,31 +48,47 @@ type UIState = {
   setPaper: (p: { paperActive?: boolean; paperSessionId?: number | null }) => void;
 };
 
-export const useUIStore = create<UIState>((set) => ({
-  rightSidebarOpen: false,
-  bottomPanelOpen: false,
-  bottomTab: "trade",
-  chartType: "candles",
-  showVolume: true,
-  indicators: [],
-  backtestRequest: null,
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      rightSidebarOpen: false,
+      bottomPanelOpen: false,
+      bottomTab: "trade",
+      chartType: "candles",
+      showVolume: true,
+      indicators: [],
+      backtestRequest: null,
 
-  replayActive: false,
-  replayPlaying: false,
-  replaySpeed: 1,
-  replayTime: null,
-  paperActive: false,
-  paperSessionId: null,
+      replayActive: false,
+      replayPlaying: false,
+      replaySpeed: 1,
+      replayTime: null,
+      paperActive: false,
+      paperSessionId: null,
 
-  toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
-  toggleBottomPanel: (open) =>
-    set((s) => ({ bottomPanelOpen: open !== undefined ? open : !s.bottomPanelOpen })),
-  setBottomTab: (bottomTab) => set({ bottomTab, bottomPanelOpen: true }),
-  setChartType: (chartType) => set({ chartType }),
-  toggleVolume: () => set((s) => ({ showVolume: !s.showVolume })),
-  addIndicator: (i) => set((s) => ({ indicators: [...s.indicators, i] })),
-  removeIndicator: (id) => set((s) => ({ indicators: s.indicators.filter((x) => x.id !== id) })),
-  setReplay: (p) => set(p),
-  setBacktestRequest: (backtestRequest) => set({ backtestRequest }),
-  setPaper: (p) => set(p),
-}));
+      toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
+      toggleBottomPanel: (open) =>
+        set((s) => ({ bottomPanelOpen: open !== undefined ? open : !s.bottomPanelOpen })),
+      setBottomTab: (bottomTab) => set({ bottomTab, bottomPanelOpen: true }),
+      setChartType: (chartType) => set({ chartType }),
+      toggleVolume: () => set((s) => ({ showVolume: !s.showVolume })),
+      addIndicator: (i) => set((s) => ({ indicators: [...s.indicators, i] })),
+      removeIndicator: (id) => set((s) => ({ indicators: s.indicators.filter((x) => x.id !== id) })),
+      setReplay: (p) => set(p),
+      setBacktestRequest: (backtestRequest) => set({ backtestRequest }),
+      setPaper: (p) => set(p),
+    }),
+    {
+      name: "pw-ui",
+      // persist the workspace layout only — never live session state
+      partialize: (s) => ({
+        chartType: s.chartType,
+        showVolume: s.showVolume,
+        indicators: s.indicators,
+        bottomTab: s.bottomTab,
+        bottomPanelOpen: s.bottomPanelOpen,
+        rightSidebarOpen: s.rightSidebarOpen,
+      }),
+    }
+  )
+);

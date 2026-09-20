@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api import health, data, replay, backtest, pine, paper
+from app.api import health, data, replay, backtest, pine, paper, screener
 from app.models.database import init_db
 
 
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
     app.include_router(pine.router, prefix="/api/pine", tags=["pine"])
     app.include_router(paper.router, prefix="/api/paper", tags=["paper"])
+    app.include_router(screener.router, prefix="/api/screener", tags=["screener"])
 
     @app.get("/")
     async def root():
@@ -51,7 +52,7 @@ def create_app() -> FastAPI:
             "name": settings.app_name,
             "status": "ok",
             "version": "0.1.0",
-            "endpoints": ["/api/health", "/api/data", "/api/replay", "/api/backtest", "/api/pine", "/api/paper"],
+            "endpoints": ["/api/health", "/api/data", "/api/replay", "/api/backtest", "/api/pine", "/api/paper", "/api/screener"],
         }
 
     return app

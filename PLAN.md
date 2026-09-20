@@ -377,16 +377,29 @@ Keyboard shortcuts (TradingView-like):
 - [x] UI: **Paper** button (top bar) + live PAPER pill (equity, position, unrealized P&L),
       chart follows the live edge (auto-scroll), toasts for server-side fills/stop-outs
 - [x] `POST /api/paper/start|stop`, `GET /api/paper/sessions`; stopped sessions refuse orders
+- [x] Desktop notifications — browser Notification API on paper fills/stop-outs while the
+      tab is hidden (permission requested on first Paper start)
 - [ ] Real-time WebSocket feed per symbol (polling for now — 1.5s UI / 20s background)
 - [ ] OANDA live execution (orders routed) — needs API key
 - [ ] IBKR live execution — needs TWS gateway
-- [ ] Desktop notifications
 
 ### Phase 7 — Polish (ongoing)
-- [ ] Keyboard shortcut editor
-- [ ] Layout saving (multi-chart workspaces)
-- [ ] Screener (basic scans)
-- [ ] Monte Carlo resampling of trades
+- [x] **Chart drawings**: trend line, ray, horizontal line, rectangle, Fibonacci retracement —
+      canvas overlay synced to the chart's time/price scale (works while panning/zooming,
+      extrapolates beyond data edges), magnet mode (snap to OHLC), select (click) /
+      delete (Del) / clear all, hide toggle, persisted per symbol+timeframe in localStorage
+      (`DrawLayer.tsx`, `stores/draw.ts`, left toolbar wired for real)
+- [x] **Screener**: scans all symbols with local data — last, 24h change %, RSI(14),
+      price vs SMA20/50/200, volume ×avg20, 200-bar range position; sortable table,
+      click a row to switch chart (`GET /api/screener/scan`, `ScreenerDialog.tsx`)
+- [x] **Monte Carlo**: bootstrap-resample the backtest's trade P&L ×2000 — median/percentile
+      final equity, P(end < initial), median & p95 max DD, final-equity histogram
+      (`MonteCarlo.tsx`, dice button in Backtest panel)
+- [x] **Layout saving (minimal)**: symbol, timeframe, chart type, volume toggle, active
+      indicators, bottom tab/panel persist across reloads (zustand persist; live session
+      state is never persisted)
+- [ ] Keyboard shortcut editor (current: Space/←/→ replay, X close, Del drawing, Esc cancel)
+- [ ] Multi-chart workspaces
 - [ ] Documentation site (VitePress)
 
 ---

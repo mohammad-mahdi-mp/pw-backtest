@@ -7,8 +7,9 @@ import { useAppStore } from "@/stores/app";
 import { useUIStore } from "@/stores/ui";
 import { fmtMoney, fmtNumber, fmtEpoch } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Play, History, FlaskConical, AlertCircle } from "lucide-react";
+import { Play, History, FlaskConical, AlertCircle, Dices } from "lucide-react";
 import type { BacktestResult, CurvePoint } from "@/types";
+import { MonteCarlo } from "@/components/bottom/MonteCarlo";
 
 const DEFAULT_STRATEGY = `//@version=5
 strategy("SMA Crossover", overlay=true, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=20)
@@ -86,6 +87,7 @@ export function BacktestPanel() {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState("");
   const [histOpen, setHistOpen] = useState(false);
+  const [mcOpen, setMcOpen] = useState(false);
 
   const { data: runs } = useQuery({
     queryKey: ["backtest-runs"],
@@ -180,6 +182,15 @@ export function BacktestPanel() {
             >
               <Play className="w-3.5 h-3.5" /> {running ? "Running…" : "Run Backtest"}
             </button>
+            {result && result.trades.length >= 5 && (
+              <button
+                onClick={() => setMcOpen(true)}
+                className="h-8 w-8 rounded bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] flex items-center justify-center"
+                title="Monte Carlo — resample trades"
+              >
+                <Dices className="w-4 h-4" />
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={() => setHistOpen((v) => !v)}
@@ -334,6 +345,14 @@ export function BacktestPanel() {
           </div>
         )}
       </div>
+
+      {mcOpen && result && (
+        <MonteCarlo
+          trades={result.trades}
+          initial={result.initial_capital}
+          onClose={() => setMcOpen(false)}
+        />
+      )}
     </div>
   );
 }

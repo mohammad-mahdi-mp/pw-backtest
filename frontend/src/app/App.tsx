@@ -86,18 +86,32 @@ export default function App() {
     (events: ReplayEvent[]) => {
       if (!events?.length) return;
       for (const ev of events) {
+        let text = "";
+        let good: Toast["kind"] = "info";
         if (ev.type === "order_filled") {
-          toast(`${(ev.side ?? "").toUpperCase()} ${fmtNumber(ev.size ?? 0, 2)} filled @ ${ev.price}`, "info");
+          text = `${(ev.side ?? "").toUpperCase()} ${fmtNumber(ev.size ?? 0, 2)} filled @ ${ev.price}`;
         } else if (ev.type === "position_closed") {
           const pnl = ev.pnl ?? 0;
-          toast(
-            `Closed ${ev.side === "long" ? "LONG" : "SHORT"} ${fmtNumber(ev.closed_size ?? 0, 2)} @ ${ev.exit_price ?? ev.price} · ${pnl >= 0 ? "+" : ""}$${fmtNumber(pnl, 2)} (${ev.reason === "sl" ? "SL" : ev.reason === "tp" ? "TP" : "manual"})`,
-            pnl >= 0 ? "good" : "bad"
-          );
+          good = pnl >= 0 ? "good" : "bad";
+          text = `Closed ${ev.side === "long" ? "LONG" : "SHORT"} ${fmtNumber(ev.closed_size ?? 0, 2)} @ ${ev.exit_price ?? ev.price} · ${pnl >= 0 ? "+" : ""}$${fmtNumber(pnl, 2)} (${ev.reason === "sl" ? "SL" : ev.reason === "tp" ? "TP" : "manual"})`;
         } else if (ev.type === "position_reduced") {
-          toast(`Reduced to ${fmtNumber(ev.remaining_size ?? 0, 2)} @ ${ev.exit_price ?? ev.price}`, "info");
+          text = `Reduced to ${fmtNumber(ev.remaining_size ?? 0, 2)} @ ${ev.exit_price ?? ev.price}`;
         } else if (ev.type === "position_opened") {
-          toast(`${ev.side === "long" ? "LONG" : "SHORT"} ${fmtNumber(ev.size ?? 0, 2)} @ ${ev.entry_price ?? ev.price}`, "info");
+          text = `${ev.side === "long" ? "LONG" : "SHORT"} ${fmtNumber(ev.size ?? 0, 2)} @ ${ev.entry_price ?? ev.price}`;
+        }
+        if (!text) continue;
+        toast(text, good);
+        // desktop notification while the tab is in the background (paper trading)
+        if (
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted" &&
+          document.hidden
+        ) {
+          try {
+            new Notification("pw-backtest", { body: text, tag: `pw-${ev.type}-${ev.time ?? ""}` });
+          } catch {
+            /* some browsers restrict constructors */
+          }
         }
       }
       qc.invalidateQueries({ queryKey: ["session", sessionId] });
@@ -147,6 +161,10 @@ export default function App() {
     }
     try {
       if (replayActive) setReplay({ replayActive: false, replayPlaying: false });
+      // ask for desktop notifications once (fills/stop-outs while tab is hidden)
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => undefined);
+      }
       const s = await api.paperStart({ symbol, timeframe, cash: 100000 });
       setSessionId(s.id);
       setPaper({ paperActive: true, paperSessionId: s.id });
