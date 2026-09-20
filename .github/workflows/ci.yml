@@ -12,6 +12,8 @@ jobs:
   # Early rust gate (sandbox has no crates.io access, so GitHub Actions is the
   # verify environment for Rust until the full P0-T04 CI lands with Fedora
   # rpm containers, cargo-deny, and the §1.7 manifest check).
+  # Diagnostics are emitted as ::error:: annotations because the sandbox
+  # cannot download run logs from blob storage.
   rust:
     name: Rust (clippy + tests + parity gate)
     runs-on: ubuntu-latest
@@ -24,11 +26,70 @@ jobs:
       - name: Install clippy + rustfmt
         run: rustup component add clippy rustfmt
 
-      - name: Clippy (strict, -D warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy
+        id: clippy
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets -- -D warnings > /tmp/clippy.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: pw-core contract tests
-        run: cargo test -p pw-core
+        id: pwcore
+        run: |
+          set +e
+          cargo test -p pw-core > /tmp/pwcore.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: pw-engine parity gate (50 expected failures until P3-T01)
-        run: bash ../scripts/check-engine-expected-failures.sh
+        id: parity
+        run: |
+          set +e
+          bash ../scripts/check-engine-expected-failures.sh > /tmp/parity.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Report diagnostics + final status
+        run: |
+          s_clippy="${{ steps.clippy.outputs.status }}"
+          s_pwcore="${{ steps.pwcore.outputs.status }}"
+          s_parity="${{ steps.parity.outputs.status }}"
+          {
+            echo "## CI diagnostics"
+            echo ""
+            echo "| step | status |"
+            echo "|------|--------|"
+            echo "| clippy | $s_clippy |"
+            echo "| pw-core tests | $s_pwcore |"
+            echo "| parity gate | $s_parity |"
+            echo ""
+            echo '```text'
+            grep -E "^error(\[|:)" -A 8 /tmp/clippy.log | head -160 || true
+            echo "--- pw-core test tail ---"
+            tail -n 30 /tmp/pwcore.log || true
+            echo "--- parity gate tail ---"
+            tail -n 30 /tmp/parity.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # annotations (readable via the checks API from the sandbox)
+          grep -E "^error(\[|:)" /tmp/clippy.log | head -20 | while read -r line; do
+            printf '::error::%s\n' "${line:0:400}"
+          done
+          if [ "$s_pwcore" != "0" ]; then
+            tail -n 25 /tmp/pwcore.log | while read -r line; do
+              printf '::error::%s\n' "${line:0:400}"
+            done
+          fi
+          if [ "$s_parity" != "0" ]; then
+            tail -n 10 /tmp/parity.log | while read -r line; do
+              printf '::error::%s\n' "${line:0:400}"
+            done
+          fi
+
+          if [ "$s_clippy" = "0" ] && [ "$s_pwcore" = "0" ] && [ "$s_parity" = "0" ]; then
+            echo "ALL RUST GATES GREEN"
+            exit 0
+          fi
+          exit 1
