@@ -42,6 +42,18 @@ def save_bars(df: pd.DataFrame, symbol: str, timeframe: str, provider: str = "ge
     return len(df)
 
 
+def find_bars_path(symbol: str, timeframe: str) -> Optional[Path]:
+    """Locate the existing parquet for symbol/timeframe across provider folders."""
+    safe_symbol = symbol.replace("/", "_")
+    if not MARKET_DIR.exists():
+        return None
+    for provider_dir in sorted(MARKET_DIR.iterdir()):
+        candidate = provider_dir / safe_symbol / timeframe / "data.parquet"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def load_bars(
     symbol: str,
     timeframe: str,

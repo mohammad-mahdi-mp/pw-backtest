@@ -57,6 +57,10 @@ type Props = {
   watermark: string;
   priceLines?: PriceLineSpec[];
   markers?: MarkerSpec[];
+  /** change to refit the chart (symbol/timeframe/type switch) */
+  resetKey?: string;
+  /** paper/live: stick to the realtime edge unless the user scrolled back */
+  autoScroll?: boolean;
   onCrosshair?: (b: Bar | null) => void;
 };
 
@@ -71,6 +75,8 @@ export function Chart({
   watermark,
   priceLines = [],
   markers = [],
+  resetKey,
+  autoScroll = false,
   onCrosshair,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +87,7 @@ export function Chart({
   const priceLineRefs = useRef<IPriceLine[]>([]);
   const paneRefs = useRef<HTMLDivElement[]>([]);
   const paneChartRefs = useRef<IChartApi[]>([]);
+  const fittedFor = useRef<string>("");
 
   const priceFormat = { type: "price" as const, precision, minMove };
 
@@ -219,7 +226,22 @@ export function Chart({
       mainRef.current = s;
     }
 
-    if (bars.length) chart.timeScale().fitContent();
+    if (bars.length) {
+      const ts = chart.timeScale();
+      const key = resetKey ?? "";
+      if (fittedFor.current !== key) {
+        // first render or symbol/type switch → fit everything
+        ts.fitContent();
+        fittedFor.current = key;
+      } else if (autoScroll) {
+        // live updates: follow the realtime edge unless the user scrolled back
+        try {
+          if (Math.abs(ts.scrollPosition()) < 5) ts.scrollToRealTime();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, chartType]);
 

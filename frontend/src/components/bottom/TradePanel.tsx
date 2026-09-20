@@ -42,7 +42,7 @@ function OrderTicketForm() {
 
   const submit = async () => {
     if (!sessionId) {
-      setResult({ ok: false, text: "Start a Replay session first (Replay button, top bar)." });
+      setResult({ ok: false, text: "Start a Paper or Replay session first (top bar buttons)." });
       return;
     }
     setBusy(true);

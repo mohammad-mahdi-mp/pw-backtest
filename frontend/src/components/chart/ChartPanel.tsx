@@ -31,6 +31,7 @@ export function ChartPanel({
 }: Props) {
   const { symbol, timeframe } = useAppStore();
   const { chartType, showVolume } = useChartOpts();
+  const { replayActive, paperActive } = useUIStore();
   const [hoverBar, setHoverBar] = useState<Bar | null>(null);
 
   const { precision, minMove } = useMemo(() => pricePrecision(symbol), [symbol]);
@@ -52,6 +53,8 @@ export function ChartPanel({
         watermark={`${symbol} · ${timeframe}`}
         priceLines={priceLines}
         markers={markers}
+        resetKey={`${symbol}|${timeframe}|${chartType}|${replayActive ? 1 : 0}`}
+        autoScroll={replayActive || paperActive}
         onCrosshair={setHoverBar}
       />
 

@@ -367,10 +367,19 @@ Keyboard shortcuts (TradingView-like):
 - [ ] Export results to CSV/JSON
 
 ### Phase 6 — Paper Trading & Live (2 days later)
-- [ ] Real-time WebSocket feed per symbol
-- [ ] Paper account with live prices
-- [ ] OANDA live execution (orders routed)
-- [ ] IBKR live execution
+- [x] Paper account with live prices — sessions auto-refresh data from Binance (crypto) /
+      Yahoo (stocks & FX) every poll (throttled) and a background heartbeat keeps them
+      advancing with the UI closed; offline falls back gracefully to stored bars
+      (`app/paper/feed.py`, `app/api/paper.py`, `advance_paper_session` in replay API)
+- [x] Paper sessions reuse the whole replay trading stack: market/limit/stop orders, SL/TP
+      auto-triggers, netting/flip, commissions — market fills execute at the live price
+      (last quote incl. the in-progress candle), pending orders & SL/TP evaluate on closed bars only
+- [x] UI: **Paper** button (top bar) + live PAPER pill (equity, position, unrealized P&L),
+      chart follows the live edge (auto-scroll), toasts for server-side fills/stop-outs
+- [x] `POST /api/paper/start|stop`, `GET /api/paper/sessions`; stopped sessions refuse orders
+- [ ] Real-time WebSocket feed per symbol (polling for now — 1.5s UI / 20s background)
+- [ ] OANDA live execution (orders routed) — needs API key
+- [ ] IBKR live execution — needs TWS gateway
 - [ ] Desktop notifications
 
 ### Phase 7 — Polish (ongoing)

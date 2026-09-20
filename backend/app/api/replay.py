@@ -14,8 +14,12 @@ from app.models.session import ReplaySession
 from app.models.order import Order
 from app.models.trade import Trade
 from app.data.storage import load_bars
+from app.paper.feed import refresh_recent
 from app.replay.engine import PendingOrder, Position, VirtualBroker
 from app.replay.markets import MarketConfig, get_market_config
+
+import asyncio
+import time as _time
 
 router = APIRouter()
 
@@ -151,8 +155,59 @@ async def _persist_events(db: AsyncSession, sess: ReplaySession, broker: Virtual
 
 def _sync_session(sess: ReplaySession, broker: VirtualBroker) -> None:
     sess.cash = broker.balance
-    mark = _last_close(sess.symbol, sess.timeframe, sess.current_time)
+    # paper sessions mark against the live (possibly intra-bar) price
+    mark_at = datetime.utcnow() if sess.mode == "paper" else sess.current_time
+    mark = _last_close(sess.symbol, sess.timeframe, mark_at)
     sess.equity = broker.equity(mark)
+
+
+# ------------------------------------------------------------------ paper
+
+# per-session throttle so 1.5s UI polls don't hammer the exchange API
+_paper_last_refresh: dict[int, float] = {}
+
+
+async def advance_paper_session(
+    db: AsyncSession, sess: ReplaySession, force: bool = False
+) -> list[dict]:
+    """Refresh live data for a paper session and simulate every newly CLOSED bar.
+
+    In-progress candles are never fed to the broker (only completed bars), but
+    the live price is used for equity marking. Returns broker events.
+    """
+    if not force and _time.time() - _paper_last_refresh.get(sess.id, 0.0) < 4.0:
+        return []
+    _paper_last_refresh[sess.id] = _time.time()
+
+    await asyncio.to_thread(refresh_recent, sess.symbol, sess.timeframe)
+
+    now = datetime.utcnow()
+    tf = _tf_minutes(sess.timeframe)
+    processed = sess.processed_time or sess.current_time
+    bars = _bars_after(sess.symbol, sess.timeframe, processed, now)
+    done = [b for b in bars if b["_dt"] + timedelta(minutes=tf) <= now]
+
+    broker: Optional[VirtualBroker] = None
+    events: list[dict] = []
+    if done:
+        broker = await _broker_from_db(db, sess)
+        for bar in done:
+            broker.on_bar(bar)
+        await _persist_events(db, sess, broker)
+        sess.processed_time = done[-1]["_dt"]
+        sess.current_time = done[-1]["_dt"]
+        events = broker.events
+
+    # re-mark equity at the live price (last stored close, incl. partial bar)
+    if broker is None:
+        broker = await _broker_from_db(db, sess)
+    live = _last_close(sess.symbol, sess.timeframe, datetime.utcnow())
+    if live is not None:
+        sess.equity = broker.equity(live)
+    return events
+
+
+# ------------------------------------------------------------------ endpoints
 
 
 def _parse_dt(v: Any) -> Optional[datetime]:
@@ -212,6 +267,14 @@ async def get_session(session_id: int, db: AsyncSession = Depends(get_db)) -> di
     sess = await db.get(ReplaySession, session_id)
     if not sess:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # paper sessions auto-advance on poll (throttled) + report fresh events
+    paper_events: list[dict] = []
+    if sess.mode == "paper" and sess.is_running:
+        paper_events = await advance_paper_session(db, sess)
+        await db.commit()
+        await db.refresh(sess)
+
     orders = (await db.execute(
         select(Order).where(Order.session_id == session_id).order_by(Order.created_at)
     )).scalars().all()
@@ -220,7 +283,8 @@ async def get_session(session_id: int, db: AsyncSession = Depends(get_db)) -> di
     )).scalars().all()
 
     cfg = get_market_config(sess.symbol)
-    mark = _last_close(sess.symbol, sess.timeframe, sess.current_time)
+    mark_at = datetime.utcnow() if sess.mode == "paper" else sess.current_time
+    mark = _last_close(sess.symbol, sess.timeframe, mark_at)
     open_trade = next((t for t in trades if t.exit_time is None), None)
 
     position = None
@@ -287,6 +351,8 @@ async def get_session(session_id: int, db: AsyncSession = Depends(get_db)) -> di
             "avg_loss": (-gross_loss / len(losses)) if losses else 0.0,
             "profit_factor": (gross_win / gross_loss) if gross_loss > 0 else None,
         },
+        # paper mode: events produced by the auto-advance during this poll
+        "events": paper_events,
     }
 
 
@@ -307,8 +373,18 @@ async def place_order(session_id: int, payload: dict, db: AsyncSession = Depends
         raise HTTPException(400, "side must be buy|sell")
     if otype not in ("market", "limit", "stop"):
         raise HTTPException(400, "type must be market|limit|stop")
+    if sess.mode == "paper" and not sess.is_running:
+        raise HTTPException(400, "Paper session is stopped")
 
-    ref = _last_close(sess.symbol, sess.timeframe, sess.current_time)
+    # paper: catch up on closed bars first so pending fills are up to date
+    if sess.mode == "paper" and sess.is_running:
+        await advance_paper_session(db, sess)
+        await db.commit()
+        await db.refresh(sess)
+
+    # paper sessions fill against the live price (last stored close, incl. partial bar)
+    ref_at = datetime.utcnow() if sess.mode == "paper" else sess.current_time
+    ref = _last_close(sess.symbol, sess.timeframe, ref_at)
     if ref is None:
         raise HTTPException(400, "No price data at cursor — load data first")
 
@@ -403,10 +479,17 @@ async def close_position(session_id: int, db: AsyncSession = Depends(get_db)) ->
     sess = await db.get(ReplaySession, session_id)
     if not sess:
         raise HTTPException(404, "Session not found")
+    if sess.mode == "paper" and not sess.is_running:
+        raise HTTPException(400, "Paper session is stopped")
+    if sess.mode == "paper" and sess.is_running:
+        await advance_paper_session(db, sess)
+        await db.commit()
+        await db.refresh(sess)
     broker = await _broker_from_db(db, sess)
     if not broker.position:
         raise HTTPException(400, "No open position")
-    ref = _last_close(sess.symbol, sess.timeframe, sess.current_time)
+    ref_at = datetime.utcnow() if sess.mode == "paper" else sess.current_time
+    ref = _last_close(sess.symbol, sess.timeframe, ref_at)
     if ref is None:
         raise HTTPException(400, "No price data at cursor")
     p = broker.position

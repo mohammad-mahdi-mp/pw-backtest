@@ -20,6 +20,7 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | 3     | Replay / manual trading engine  | ✅ **Done** — full VirtualBroker: market/limit/stop fills, SL/TP auto-triggers, netting/flip, commissions, margin, P&L & equity |
 | 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
 | 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list, saved runs |
+| 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
 | 5     | Automated backtest              | ⏳ Placeholder |
 | 6     | Paper / live trading            | ⏳ Planned     |
 | 7     | Polish (drawings, screener, …)  | ⏳ Planned     |
@@ -69,7 +70,13 @@ pnpm dev
    next-bar-open fills, percent-of-equity or fixed sizing and pyramiding=0. The Backtest tab shows
    net P&L, Sharpe, Sortino, CAGR, max drawdown, profit factor, win rate, expectancy, streaks,
    an equity + drawdown chart, the full trade list with exit reasons, and a history of saved runs.
-7. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
+7. **Paper trading** — press **Paper** in the top bar: the session trades against live prices
+   (data auto-refreshed from Binance for crypto, Yahoo for stocks/FX — no API keys needed).
+   Market orders fill at the live quote; limit/stop orders and SL/TP triggers evaluate on every
+   closed candle. A background heartbeat keeps the session running even with the UI closed.
+   The floating PAPER pill shows equity and open-position P&L; stopped sessions are read-only.
+   Offline? Paper mode degrades gracefully to the last stored bars.
+8. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
 
 ## Project layout
 

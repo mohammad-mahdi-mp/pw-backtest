@@ -99,6 +99,8 @@ export type SessionDetail = {
   pending_orders: OrderInfo[];
   trades: TradeInfo[];
   stats: SessionStats;
+  /** paper mode: events produced by the server-side auto-advance during this poll */
+  events?: ReplayEvent[];
 };
 
 export type ReplayEvent = {

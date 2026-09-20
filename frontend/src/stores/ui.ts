@@ -32,6 +32,8 @@ type UIState = {
   replayPlaying: boolean;
   replaySpeed: number;
   replayTime: number | null; // epoch seconds of replay cursor
+  paperActive: boolean;
+  paperSessionId: number | null;
 
   toggleRightSidebar: () => void;
   toggleBottomPanel: (open?: boolean) => void;
@@ -42,6 +44,7 @@ type UIState = {
   removeIndicator: (id: string) => void;
   setReplay: (p: ReplayStatePatch) => void;
   setBacktestRequest: (r: BacktestRequest | null) => void;
+  setPaper: (p: { paperActive?: boolean; paperSessionId?: number | null }) => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -57,6 +60,8 @@ export const useUIStore = create<UIState>((set) => ({
   replayPlaying: false,
   replaySpeed: 1,
   replayTime: null,
+  paperActive: false,
+  paperSessionId: null,
 
   toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
   toggleBottomPanel: (open) =>
@@ -68,4 +73,5 @@ export const useUIStore = create<UIState>((set) => ({
   removeIndicator: (id) => set((s) => ({ indicators: s.indicators.filter((x) => x.id !== id) })),
   setReplay: (p) => set(p),
   setBacktestRequest: (backtestRequest) => set({ backtestRequest }),
+  setPaper: (p) => set(p),
 }));

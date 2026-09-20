@@ -76,6 +76,18 @@ export const api = {
       body: JSON.stringify({ note }),
     }),
 
+  // Paper trading
+  paperStart: (payload: { symbol: string; timeframe: string; cash?: number; leverage?: number }) =>
+    request<{ id: number; symbol: string; timeframe: string; current_time: string; cash: number; equity: number }>(
+      "/api/paper/start",
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
+  paperStop: (id: number) =>
+    request<{ id: number; stopped: boolean; equity: number }>("/api/paper/stop", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    }),
+
   // Pine
   listScripts: () => request<any[]>("/api/pine/scripts"),
   saveScript: (payload: any) => request<{ id: number; name: string }>("/api/pine/scripts", { method: "POST", body: JSON.stringify(payload) }),

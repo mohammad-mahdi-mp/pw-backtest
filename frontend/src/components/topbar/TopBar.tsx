@@ -5,6 +5,7 @@ import {
   FunctionSquare,
   Bell,
   History,
+  Radio,
   Camera,
   Settings,
   Maximize2,
@@ -36,9 +37,11 @@ const CHART_TYPES: { id: ChartType; label: string }[] = [
 type Props = {
   replayActive: boolean;
   onToggleReplay: () => void;
+  paperActive: boolean;
+  onTogglePaper: () => void;
 };
 
-export function TopBar({ replayActive, onToggleReplay }: Props) {
+export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePaper }: Props) {
   const { symbol, setSymbol, timeframe, setTimeframe } = useAppStore();
   const {
     chartType,
@@ -260,6 +263,21 @@ export function TopBar({ replayActive, onToggleReplay }: Props) {
         >
           <History className="w-4 h-4" />
           <span className="hidden sm:inline">Replay</span>
+        </button>
+
+        {/* Paper trading */}
+        <button
+          onClick={onTogglePaper}
+          className={cn(
+            "flex items-center gap-1.5 h-7 px-2 rounded text-[13px] font-semibold transition-colors",
+            paperActive
+              ? "bg-bull text-[#131722]"
+              : "text-[#d1d4dc] hover:bg-[#2a2e39]"
+          )}
+          title="Paper trading — live prices, simulated fills"
+        >
+          <Radio className="w-4 h-4" />
+          <span className="hidden sm:inline">Paper</span>
         </button>
 
         <div className="w-px h-5 bg-tvborder mx-1" />

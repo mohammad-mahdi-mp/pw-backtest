@@ -5,6 +5,7 @@ import { ChartPanel } from "@/components/chart/ChartPanel";
 import { DrawingToolbar } from "@/components/chart/DrawingToolbar";
 import { TopBar } from "@/components/topbar/TopBar";
 import { ReplayBar } from "@/components/replay/ReplayBar";
+import { PaperBar } from "@/components/replay/PaperBar";
 import { BottomPanel } from "@/components/bottom/BottomPanel";
 import { RightSidebar } from "@/components/sidebar/RightSidebar";
 import { useAppStore } from "@/stores/app";
@@ -34,6 +35,9 @@ export default function App() {
     replaySpeed,
     replayTime,
     setReplay,
+    paperActive,
+    paperSessionId,
+    setPaper,
     rightSidebarOpen,
     bottomPanelOpen,
   } = useUIStore();
@@ -50,6 +54,8 @@ export default function App() {
     queryKey: ["bars", symbol, timeframe],
     queryFn: () => api.getBars(symbol, timeframe, 3000),
     refetchOnWindowFocus: false,
+    // paper mode: keep pulling fresh bars (server refreshes parquet in the background)
+    refetchInterval: paperActive ? 5000 : false,
   });
   const bars: Bar[] = useMemo(() => data?.bars ?? [], [data]);
 
@@ -116,12 +122,76 @@ export default function App() {
   const stepRef = useRef(step);
   stepRef.current = step;
 
+  // ---------- paper trading ----------
+  const stopPaper = useCallback(
+    async (silent = false) => {
+      const pid = useUIStore.getState().paperSessionId;
+      if (pid) {
+        try {
+          await api.paperStop(pid);
+        } catch {
+          /* ignore */
+        }
+      }
+      setPaper({ paperActive: false, paperSessionId: null });
+      setSessionId(null);
+      if (!silent) toast("Paper trading stopped", "info");
+    },
+    [setPaper, setSessionId, toast]
+  );
+
+  const togglePaper = useCallback(async () => {
+    if (paperActive) {
+      await stopPaper();
+      return;
+    }
+    try {
+      if (replayActive) setReplay({ replayActive: false, replayPlaying: false });
+      const s = await api.paperStart({ symbol, timeframe, cash: 100000 });
+      setSessionId(s.id);
+      setPaper({ paperActive: true, paperSessionId: s.id });
+      useUIStore.getState().setBottomTab("trade");
+      toast(`Paper trading live — ${symbol} ${timeframe}`, "info");
+    } catch (e: any) {
+      const m = (e?.message || "").match(/"detail":"([^"]+)"/);
+      toast(m ? m[1] : "Could not start paper session", "bad");
+    }
+  }, [paperActive, replayActive, symbol, timeframe, setPaper, setSessionId, setReplay, stopPaper, toast]);
+
+  // one live session at a time: switching symbol/timeframe stops paper
+  const paperSymRef = useRef<string>("");
+  useEffect(() => {
+    const key = `${symbol}|${timeframe}`;
+    if (paperSymRef.current && paperSymRef.current !== key && paperActive) {
+      stopPaper(true);
+      toast("Paper session stopped (symbol switched)", "info");
+    }
+    paperSymRef.current = key;
+  }, [symbol, timeframe, paperActive, stopPaper, toast]);
+
+  // surface server-side auto-advance events (SL/TP fills, pending triggers)
+  const seenEvents = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!paperActive || !session?.events?.length) return;
+    const fresh = session.events.filter((e) => {
+      const key = `${e.type}|${e.time}|${e.price ?? e.exit_price ?? e.order_id ?? ""}`;
+      if (seenEvents.current.has(key)) return false;
+      seenEvents.current.add(key);
+      return true;
+    });
+    if (fresh.length) {
+      handleEvents(fresh);
+      if (seenEvents.current.size > 300) seenEvents.current = new Set([...seenEvents.current].slice(-150));
+    }
+  }, [session, paperActive, handleEvents]);
+
   const toggleReplay = useCallback(async () => {
     if (replayActive) {
       setReplay({ replayActive: false, replayPlaying: false });
       return;
     }
     if (!bars.length) return;
+    if (paperActive) await stopPaper(true); // one live session at a time
     const startIdx = Math.max(0, bars.length - 300);
     const startTime = new Date(bars[startIdx].time * 1000).toISOString();
     try {
@@ -137,7 +207,7 @@ export default function App() {
     } catch {
       /* ignore */
     }
-  }, [replayActive, bars, symbol, timeframe, setReplay, setSessionId, toast]);
+  }, [replayActive, bars, symbol, timeframe, setReplay, setSessionId, toast, paperActive, stopPaper]);
 
   const closePos = useCallback(async () => {
     if (!sessionId) return;
@@ -319,7 +389,7 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-tvbg overflow-hidden select-none">
-      <TopBar replayActive={replayActive} onToggleReplay={toggleReplay} />
+      <TopBar replayActive={replayActive} onToggleReplay={toggleReplay} paperActive={paperActive} onTogglePaper={togglePaper} />
 
       <div className="flex flex-1 min-h-0">
         <DrawingToolbar />
@@ -355,6 +425,7 @@ export default function App() {
             )}
 
             {replayActive && <ReplayBar onStep={step} onExit={() => toggleReplay()} />}
+            {paperActive && !replayActive && <PaperBar onStop={() => stopPaper()} />}
           </div>
 
           {bottomPanelOpen && <BottomPanel />}
