@@ -316,7 +316,8 @@ Keyboard shortcuts (TradingView-like):
 - [x] Sub-panes (RSI etc.) with synced time scale
 - [x] Theme: TradingView dark default
 - [x] Load historical bars from backend via HTTP (vite proxy)
-- [ ] Drawing tools (trendline, horizontal line, ray, rectangle, fib retracement)
+- [x] Drawing tools (trendline, horizontal line, ray, rectangle, fib retracement) —
+      delivered in Phase 7 polish (see drawings row below), DrawLayer + DrawingToolbar
 
 ### Phase 3 — Replay / Manual Trading (3–4 days)
 - [x] Replay session API (create/list/get/advance) + DB model
