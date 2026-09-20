@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, Star } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app";
+import { useLayoutStore } from "@/stores/layout";
 import { cn } from "@/lib/utils";
 
 const DEFAULTS = [
@@ -27,7 +28,8 @@ const MARKET_COLOR: Record<string, string> = {
 };
 
 export function RightSidebar() {
-  const { symbol, setSymbol } = useAppStore();
+  const symbol = useAppStore((s) => s.symbol);
+  const setSymbol = useLayoutStore((s) => s.setActiveSymbol);
   const [q, setQ] = useState("");
 
   const { data: serverSymbols } = useQuery({

@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, Plus } from "lucide-react";
 import { BUILTIN_INDICATORS, makeIndicator } from "@/lib/indicators";
 import { useUIStore } from "@/stores/ui";
+import { useLayoutStore } from "@/stores/layout";
 import { cn } from "@/lib/utils";
 
 export function IndicatorsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const addIndicator = useUIStore((s) => s.addIndicator);
-  const active = useUIStore((s) => s.indicators);
+  const { addActiveIndicator, panes, activePane } = useLayoutStore();
+  const addIndicator = addActiveIndicator;
+  const active = (panes.find((p) => p.id === activePane) ?? panes[0])?.indicators ?? [];
 
   const grouped = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -85,7 +87,7 @@ export function IndicatorsDialog({ open, onClose }: { open: boolean; onClose: ()
                   <span className="text-[#d1d4dc]">{a.title}</span>
                   <button
                     className="text-[11px] text-[#787b86] hover:text-[#ef5350]"
-                    onClick={() => useUIStore.getState().removeIndicator(a.id)}
+                    onClick={() => useLayoutStore.getState().removeIndicator(useLayoutStore.getState().activePane, a.id)}
                   >
                     remove
                   </button>

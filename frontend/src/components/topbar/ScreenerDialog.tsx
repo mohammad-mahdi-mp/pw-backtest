@@ -3,12 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { X, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app";
+import { useLayoutStore } from "@/stores/layout";
 import { fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ScreenerRow } from "@/types";
 
 export function ScreenerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { symbol: currentSymbol, timeframe, setSymbol } = useAppStore();
+  const symbol = useAppStore((s) => s.symbol);
+  const timeframe = useAppStore((s) => s.timeframe);
+  const setSymbol = useLayoutStore((s) => s.setActiveSymbol);
   const [sortKey, setSortKey] = useState<keyof ScreenerRow>("chg_pct");
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
 
@@ -111,7 +114,7 @@ export function ScreenerDialog({ open, onClose }: { open: boolean; onClose: () =
                     }}
                     className={cn(
                       "border-b border-tvborder/40 cursor-pointer hover:bg-[#2a2e39]",
-                      r.symbol === currentSymbol && "bg-primary/10"
+                      r.symbol === symbol && "bg-primary/10"
                     )}
                   >
                     <td className="px-2 py-1.5 font-semibold text-[#d1d4dc]">{r.symbol}</td>

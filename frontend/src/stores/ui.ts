@@ -10,6 +10,7 @@ export type ActiveIndicator = {
   source: string;
   overlay: boolean;
 };
+// NOTE: chartType / showVolume / indicators moved to the per-pane layout store
 
 export type BacktestRequest = { source: string; name: string; key: number };
 
@@ -24,9 +25,6 @@ type UIState = {
   rightSidebarOpen: boolean;
   bottomPanelOpen: boolean;
   bottomTab: BottomTab;
-  chartType: ChartType;
-  showVolume: boolean;
-  indicators: ActiveIndicator[];
   backtestRequest: BacktestRequest | null;
 
   replayActive: boolean;
@@ -39,10 +37,6 @@ type UIState = {
   toggleRightSidebar: () => void;
   toggleBottomPanel: (open?: boolean) => void;
   setBottomTab: (t: BottomTab) => void;
-  setChartType: (c: ChartType) => void;
-  toggleVolume: () => void;
-  addIndicator: (i: ActiveIndicator) => void;
-  removeIndicator: (id: string) => void;
   setReplay: (p: ReplayStatePatch) => void;
   setBacktestRequest: (r: BacktestRequest | null) => void;
   setPaper: (p: { paperActive?: boolean; paperSessionId?: number | null }) => void;
@@ -54,9 +48,6 @@ export const useUIStore = create<UIState>()(
       rightSidebarOpen: false,
       bottomPanelOpen: false,
       bottomTab: "trade",
-      chartType: "candles",
-      showVolume: true,
-      indicators: [],
       backtestRequest: null,
 
       replayActive: false,
@@ -70,10 +61,6 @@ export const useUIStore = create<UIState>()(
       toggleBottomPanel: (open) =>
         set((s) => ({ bottomPanelOpen: open !== undefined ? open : !s.bottomPanelOpen })),
       setBottomTab: (bottomTab) => set({ bottomTab, bottomPanelOpen: true }),
-      setChartType: (chartType) => set({ chartType }),
-      toggleVolume: () => set((s) => ({ showVolume: !s.showVolume })),
-      addIndicator: (i) => set((s) => ({ indicators: [...s.indicators, i] })),
-      removeIndicator: (id) => set((s) => ({ indicators: s.indicators.filter((x) => x.id !== id) })),
       setReplay: (p) => set(p),
       setBacktestRequest: (backtestRequest) => set({ backtestRequest }),
       setPaper: (p) => set(p),
@@ -82,9 +69,6 @@ export const useUIStore = create<UIState>()(
       name: "pw-ui",
       // persist the workspace layout only — never live session state
       partialize: (s) => ({
-        chartType: s.chartType,
-        showVolume: s.showVolume,
-        indicators: s.indicators,
         bottomTab: s.bottomTab,
         bottomPanelOpen: s.bottomPanelOpen,
         rightSidebarOpen: s.rightSidebarOpen,

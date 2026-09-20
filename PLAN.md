@@ -398,9 +398,17 @@ Keyboard shortcuts (TradingView-like):
 - [x] **Layout saving (minimal)**: symbol, timeframe, chart type, volume toggle, active
       indicators, bottom tab/panel persist across reloads (zustand persist; live session
       state is never persisted)
-- [ ] Keyboard shortcut editor (current: Space/←/→ replay, X close, Del drawing, Esc cancel)
-- [ ] Multi-chart workspaces
-- [ ] Documentation site (VitePress)
+- [x] **Multi-chart workspaces**: 1 / 2 side-by-side / 2 stacked / 4 chart layouts — each
+      pane has its own symbol, timeframe, chart type & indicators; the active pane (blue
+      ring) is what the top bar, symbol search, screener and Pine editor target; panes are
+      focusable by click or Alt+←/→; whole layout persisted (`stores/layout.ts`,
+      `ChartPane.tsx` extracted from App)
+- [x] **Keyboard shortcut editor**: rebindable bindings (replay play/step, close position,
+      pane focus, panel toggles) with record-and-save UI + reset to defaults
+      (`stores/shortcuts.ts`, `ShortcutsDialog.tsx`)
+- [x] **Documentation site (VitePress)**: `docs/` — getting started, charts & drawings,
+      replay, paper, backtesting, Pine reference and REST API reference
+      (`pnpm docs:dev` / `docs:build`)
 
 ---
 

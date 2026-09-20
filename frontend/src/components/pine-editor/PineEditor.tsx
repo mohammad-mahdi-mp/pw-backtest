@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Plus, Save, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
+import { useLayoutStore } from "@/stores/layout";
 
 const DEFAULT_SCRIPT = `//@version=5
 indicator("My Indicator", overlay=true)
@@ -25,7 +26,7 @@ export function PineEditor({ onAddToChart }: Props) {
   const [scriptId, setScriptId] = useState<number | null>(null);
   const [name, setName] = useState("My Indicator");
   const [diag, setDiag] = useState("");
-  const addIndicator = useUIStore((s) => s.addIndicator);
+  const addIndicator = useLayoutStore((s) => s.addActiveIndicator);
 
   const qc = useQueryClient();
   const saveMut = useMutation({

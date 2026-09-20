@@ -2,15 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Chart, type ChartApiHandle } from "@/components/charts/Chart";
 import { DrawLayer } from "@/components/chart/DrawLayer";
 import type { Bar, PaneSpec, PlotSeries, PriceLineSpec, MarkerSpec } from "@/types";
-import type { ActiveIndicator } from "@/stores/ui";
-import { useUIStore } from "@/stores/ui";
-import { useAppStore } from "@/stores/app";
+import type { ActiveIndicator, ChartType } from "@/stores/ui";
 import { useDrawStore } from "@/stores/draw";
 import { fmtPrice, pricePrecision } from "@/lib/format";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  symbol: string;
+  timeframe: string;
+  chartType: ChartType;
+  showVolume: boolean;
+  autoScroll: boolean;
   bars: Bar[];
   overlays: PlotSeries[];
   panes: PaneSpec[];
@@ -22,6 +25,11 @@ type Props = {
 };
 
 export function ChartPanel({
+  symbol,
+  timeframe,
+  chartType,
+  showVolume,
+  autoScroll,
   bars,
   overlays,
   panes,
@@ -31,9 +39,6 @@ export function ChartPanel({
   priceLines = [],
   markers = [],
 }: Props) {
-  const { symbol, timeframe } = useAppStore();
-  const { chartType, showVolume } = useChartOpts();
-  const { replayActive, paperActive } = useUIStore();
   const [hoverBar, setHoverBar] = useState<Bar | null>(null);
   const [chartApi, setChartApi] = useState<ChartApiHandle | null>(null);
   const setDrawChartKey = useDrawStore((s) => s.setChartKey);
@@ -62,8 +67,8 @@ export function ChartPanel({
         watermark={`${symbol} · ${timeframe}`}
         priceLines={priceLines}
         markers={markers}
-        resetKey={`${symbol}|${timeframe}|${chartType}|${replayActive ? 1 : 0}`}
-        autoScroll={replayActive || paperActive}
+        resetKey={`${symbol}|${timeframe}|${chartType}`}
+        autoScroll={autoScroll}
         onApi={setChartApi}
         overlay={<DrawLayer api={chartApi} bars={bars} />}
         onCrosshair={setHoverBar}
@@ -121,11 +126,6 @@ export function ChartPanel({
   );
 }
 
-function useChartOpts() {
-  const chartType = useUIStore((s) => s.chartType);
-  const showVolume = useUIStore((s) => s.showVolume);
-  return { chartType, showVolume };
-}
 
 function tfLabel(tf: string): string {
   const m: Record<string, string> = { "1m": "1", "5m": "5", "15m": "15", "30m": "30", "1h": "60", "4h": "240", "1d": "D", "1w": "W", "1mo": "M" };

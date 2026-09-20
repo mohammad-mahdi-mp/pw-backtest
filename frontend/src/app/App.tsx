@@ -1,25 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { ChartPanel } from "@/components/chart/ChartPanel";
-import { DrawingToolbar } from "@/components/chart/DrawingToolbar";
 import { TopBar } from "@/components/topbar/TopBar";
+import { DrawingToolbar } from "@/components/chart/DrawingToolbar";
+import { ChartPane } from "@/components/chart/ChartPane";
 import { ReplayBar } from "@/components/replay/ReplayBar";
 import { PaperBar } from "@/components/replay/PaperBar";
 import { BottomPanel } from "@/components/bottom/BottomPanel";
 import { RightSidebar } from "@/components/sidebar/RightSidebar";
 import { useAppStore } from "@/stores/app";
-import { useUIStore, type ActiveIndicator } from "@/stores/ui";
-import type {
-  Bar,
-  MarkerSpec,
-  PaneSpec,
-  PlotSeries,
-  PriceLineSpec,
-  ReplayEvent,
-  SessionDetail,
-} from "@/types";
-import { fmtNumber, fmtPrice } from "@/lib/format";
+import { useUIStore } from "@/stores/ui";
+import { useLayoutStore, visiblePanes } from "@/stores/layout";
+import { comboOf, matchAction, useShortcutStore } from "@/stores/shortcuts";
+import type { ReplayEvent, SessionDetail } from "@/types";
+import { fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Toast = { id: number; text: string; kind: "info" | "good" | "bad" };
@@ -27,9 +21,6 @@ type Toast = { id: number; text: string; kind: "info" | "good" | "bad" };
 export default function App() {
   const { symbol, timeframe, sessionId, setSessionId } = useAppStore();
   const {
-    indicators,
-    addIndicator,
-    removeIndicator,
     replayActive,
     replayPlaying,
     replaySpeed,
@@ -38,26 +29,25 @@ export default function App() {
     paperActive,
     paperSessionId,
     setPaper,
-    rightSidebarOpen,
+    toggleBottomPanel,
+    toggleRightSidebar,
     bottomPanelOpen,
+    rightSidebarOpen,
   } = useUIStore();
+  const { grid, panes, activePane, setActivePane, cyclePane, removeIndicator } = useLayoutStore();
+  const shortcutBindings = useShortcutStore((s) => s.bindings);
   const qc = useQueryClient();
 
-  const [overlays, setOverlays] = useState<PlotSeries[]>([]);
-  const [panes, setPanes] = useState<PaneSpec[]>([]);
-  const [indValues, setIndValues] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(1);
 
-  // ---------- data ----------
-  const { data, isLoading } = useQuery({
-    queryKey: ["bars", symbol, timeframe],
-    queryFn: () => api.getBars(symbol, timeframe, 3000),
-    refetchOnWindowFocus: false,
-    // paper mode: keep pulling fresh bars (server refreshes parquet in the background)
-    refetchInterval: paperActive ? 5000 : false,
-  });
-  const bars: Bar[] = useMemo(() => data?.bars ?? [], [data]);
+  // ---------- active pane → app store mirror (panels read symbol/timeframe) ----------
+  const activeCfg = panes.find((p) => p.id === activePane) ?? panes[0];
+  useEffect(() => {
+    if (activeCfg && activeCfg.symbol !== symbol) useAppStore.getState().setSymbol(activeCfg.symbol);
+    if (activeCfg && activeCfg.timeframe !== timeframe) useAppStore.getState().setTimeframe(activeCfg.timeframe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCfg?.symbol, activeCfg?.timeframe]);
 
   // ---------- live session (positions, orders, equity) ----------
   const { data: session } = useQuery<SessionDetail>({
@@ -67,15 +57,7 @@ export default function App() {
     refetchInterval: 1500,
   });
 
-  // ---------- replay: hide the future ----------
-  const visibleBars = useMemo(() => {
-    if (!replayActive || !replayTime) return bars;
-    return bars.filter((b) => b.time <= replayTime);
-  }, [bars, replayActive, replayTime]);
-
-  const barsKey = `${symbol}|${timeframe}|${visibleBars.length}|${visibleBars[visibleBars.length - 1]?.time ?? 0}`;
-
-  // ---------- toasts ----------
+  // ---------- toasts + desktop notifications ----------
   const toast = useCallback((text: string, kind: Toast["kind"] = "info") => {
     const id = toastId.current++;
     setToasts((t) => [...t.slice(-4), { id, text, kind }]);
@@ -101,7 +83,6 @@ export default function App() {
         }
         if (!text) continue;
         toast(text, good);
-        // desktop notification while the tab is in the background (paper trading)
         if (
           typeof Notification !== "undefined" &&
           Notification.permission === "granted" &&
@@ -110,7 +91,7 @@ export default function App() {
           try {
             new Notification("pw-backtest", { body: text, tag: `pw-${ev.type}-${ev.time ?? ""}` });
           } catch {
-            /* some browsers restrict constructors */
+            /* ignore */
           }
         }
       }
@@ -136,7 +117,6 @@ export default function App() {
   const stepRef = useRef(step);
   stepRef.current = step;
 
-  // ---------- paper trading ----------
   const stopPaper = useCallback(
     async (silent = false) => {
       const pid = useUIStore.getState().paperSessionId;
@@ -154,6 +134,33 @@ export default function App() {
     [setPaper, setSessionId, toast]
   );
 
+  const toggleReplay = useCallback(async () => {
+    if (replayActive) {
+      setReplay({ replayActive: false, replayPlaying: false });
+      return;
+    }
+    if (paperActive) await stopPaper(true);
+    // bars of the ACTIVE pane for the replay starting point
+    try {
+      const d = await api.getBars(symbol, timeframe, 400);
+      if (!d.bars.length) return;
+      const startIdx = Math.max(0, d.bars.length - 300);
+      const startTime = new Date(d.bars[startIdx].time * 1000).toISOString();
+      const s = await api.createSession({ symbol, timeframe, start_time: startTime, cash: 100000 });
+      setSessionId(s.id);
+      setReplay({
+        replayActive: true,
+        replayPlaying: false,
+        replayTime: new Date(s.current_time).getTime() / 1000,
+      });
+      useUIStore.getState().setBottomTab("trade");
+      toast(`Replay started — ${symbol} ${timeframe}`, "info");
+    } catch {
+      /* ignore */
+    }
+  }, [replayActive, symbol, timeframe, setReplay, setSessionId, toast, paperActive, stopPaper]);
+
+  // ---------- paper trading ----------
   const togglePaper = useCallback(async () => {
     if (paperActive) {
       await stopPaper();
@@ -161,7 +168,6 @@ export default function App() {
     }
     try {
       if (replayActive) setReplay({ replayActive: false, replayPlaying: false });
-      // ask for desktop notifications once (fills/stop-outs while tab is hidden)
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         Notification.requestPermission().catch(() => undefined);
       }
@@ -175,57 +181,6 @@ export default function App() {
       toast(m ? m[1] : "Could not start paper session", "bad");
     }
   }, [paperActive, replayActive, symbol, timeframe, setPaper, setSessionId, setReplay, stopPaper, toast]);
-
-  // one live session at a time: switching symbol/timeframe stops paper
-  const paperSymRef = useRef<string>("");
-  useEffect(() => {
-    const key = `${symbol}|${timeframe}`;
-    if (paperSymRef.current && paperSymRef.current !== key && paperActive) {
-      stopPaper(true);
-      toast("Paper session stopped (symbol switched)", "info");
-    }
-    paperSymRef.current = key;
-  }, [symbol, timeframe, paperActive, stopPaper, toast]);
-
-  // surface server-side auto-advance events (SL/TP fills, pending triggers)
-  const seenEvents = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!paperActive || !session?.events?.length) return;
-    const fresh = session.events.filter((e) => {
-      const key = `${e.type}|${e.time}|${e.price ?? e.exit_price ?? e.order_id ?? ""}`;
-      if (seenEvents.current.has(key)) return false;
-      seenEvents.current.add(key);
-      return true;
-    });
-    if (fresh.length) {
-      handleEvents(fresh);
-      if (seenEvents.current.size > 300) seenEvents.current = new Set([...seenEvents.current].slice(-150));
-    }
-  }, [session, paperActive, handleEvents]);
-
-  const toggleReplay = useCallback(async () => {
-    if (replayActive) {
-      setReplay({ replayActive: false, replayPlaying: false });
-      return;
-    }
-    if (!bars.length) return;
-    if (paperActive) await stopPaper(true); // one live session at a time
-    const startIdx = Math.max(0, bars.length - 300);
-    const startTime = new Date(bars[startIdx].time * 1000).toISOString();
-    try {
-      const s = await api.createSession({ symbol, timeframe, start_time: startTime, cash: 100000 });
-      setSessionId(s.id);
-      setReplay({
-        replayActive: true,
-        replayPlaying: false,
-        replayTime: new Date(s.current_time).getTime() / 1000,
-      });
-      useUIStore.getState().setBottomTab("trade");
-      toast(`Replay started — ${symbol} ${timeframe}`, "info");
-    } catch {
-      /* ignore */
-    }
-  }, [replayActive, bars, symbol, timeframe, setReplay, setSessionId, toast, paperActive, stopPaper]);
 
   const closePos = useCallback(async () => {
     if (!sessionId) return;
@@ -246,164 +201,71 @@ export default function App() {
     return () => clearInterval(t);
   }, [replayPlaying, replaySpeed, sessionId]);
 
-  // stop replay at the end of data
+  // surface server-side auto-advance events (paper)
+  const seenEvents = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (replayActive && replayTime && bars.length) {
-      const last = bars[bars.length - 1].time;
-      if (replayTime >= last) setReplay({ replayPlaying: false });
+    if (!paperActive || !session?.events?.length) return;
+    const fresh = session.events.filter((e) => {
+      const key = `${e.type}|${e.time}|${e.price ?? e.exit_price ?? e.order_id ?? ""}`;
+      if (seenEvents.current.has(key)) return false;
+      seenEvents.current.add(key);
+      return true;
+    });
+    if (fresh.length) {
+      handleEvents(fresh);
+      if (seenEvents.current.size > 300) seenEvents.current = new Set([...seenEvents.current].slice(-150));
     }
-  }, [replayActive, replayTime, bars, setReplay]);
+  }, [session, paperActive, handleEvents]);
 
-  // ---------- keyboard shortcuts ----------
+  // ---------- keyboard shortcuts (configurable) ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as any)?.editor) return;
-      if (e.code === "Space" && replayActive) {
-        e.preventDefault();
-        setReplay({ replayPlaying: !useUIStore.getState().replayPlaying });
-      } else if (e.key === "ArrowRight" && replayActive) {
-        e.preventDefault();
-        stepRef.current(1);
-      } else if (e.key === "ArrowLeft" && replayActive) {
-        e.preventDefault();
-        stepRef.current(-1);
-      } else if ((e.key === "x" || e.key === "X") && sessionId) {
-        e.preventDefault();
-        closePos();
+      const action = matchAction(useShortcutStore.getState().bindings, comboOf(e));
+      if (!action) return;
+      e.preventDefault();
+      switch (action) {
+        case "replayPlayPause":
+          if (replayActive) setReplay({ replayPlaying: !useUIStore.getState().replayPlaying });
+          break;
+        case "stepForward":
+          if (replayActive) stepRef.current(1);
+          break;
+        case "stepBack":
+          if (replayActive) stepRef.current(-1);
+          break;
+        case "closePosition":
+          if (sessionId) closePos();
+          break;
+        case "nextPane":
+          cyclePane(1);
+          break;
+        case "prevPane":
+          cyclePane(-1);
+          break;
+        case "toggleBottomPanel":
+          toggleBottomPanel();
+          break;
+        case "toggleRightSidebar":
+          toggleRightSidebar();
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [replayActive, sessionId, setReplay, closePos]);
+  }, [replayActive, sessionId, setReplay, closePos, cyclePane, toggleBottomPanel, toggleRightSidebar]);
 
-  // ---------- indicators ----------
-  const indKey = indicators.map((i) => i.id).join(",");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!visibleBars.length || indicators.length === 0) {
-        setOverlays([]);
-        setPanes([]);
-        setIndValues({});
-        return;
-      }
-      const results = await Promise.all(
-        indicators.map(async (ind) => {
-          try {
-            const r = await api.runScript(ind.source, visibleBars);
-            if (!r.ok) return null;
-            return { ind, series: (r.series ?? []) as PlotSeries[] };
-          } catch {
-            return null;
-          }
-        })
-      );
-      if (cancelled) return;
-      const ov: PlotSeries[] = [];
-      const pn: PaneSpec[] = [];
-      const vals: Record<string, string> = {};
-      results.forEach((res) => {
-        if (!res) return;
-        if (res.ind.overlay) {
-          ov.push(...res.series);
-        } else {
-          pn.push({ id: res.ind.id, title: res.ind.title, series: res.series });
-        }
-        const last = res.series[0]?.data?.at(-1);
-        vals[res.ind.id] = last ? last.value.toFixed(2) : "";
-      });
-      setOverlays(ov);
-      setPanes(pn);
-      setIndValues(vals);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indKey, barsKey]);
-
-  // ---------- chart price lines & markers from session ----------
-  const priceLines: PriceLineSpec[] = useMemo(() => {
-    if (!session) return [];
-    const out: PriceLineSpec[] = [];
-    const pos = session.position;
-    if (pos) {
-      out.push({
-        price: pos.entry_price,
-        color: "#2962ff",
-        title: `${pos.side === "long" ? "LONG" : "SHORT"} ${pos.size} @ ${fmtPrice(pos.entry_price, session.symbol)}`,
-      });
-      if (pos.stop_loss != null) out.push({ price: pos.stop_loss, color: "#ef5350", title: `SL ${fmtPrice(pos.stop_loss, session.symbol)}`, dashed: false });
-      if (pos.take_profit != null) out.push({ price: pos.take_profit, color: "#26a69a", title: `TP ${fmtPrice(pos.take_profit, session.symbol)}`, dashed: false });
-    }
-    for (const o of session.pending_orders ?? []) {
-      if (o.price != null) {
-        out.push({
-          price: o.price,
-          color: "#ff9800",
-          title: `${o.side.toUpperCase()} ${o.type.toUpperCase()} ${o.size}`,
-        });
-      }
-    }
-    return out;
-  }, [session]);
-
-  const markers: MarkerSpec[] = useMemo(() => {
-    if (!session) return [];
-    const out: MarkerSpec[] = [];
-    const pos = session.position;
-    if (pos?.entry_time) {
-      out.push({
-        time: new Date(pos.entry_time).getTime() / 1000,
-        position: pos.side === "long" ? "belowBar" : "aboveBar",
-        color: pos.side === "long" ? "#26a69a" : "#ef5350",
-        shape: pos.side === "long" ? "arrowUp" : "arrowDown",
-        text: `${pos.side === "long" ? "B" : "S"} ${pos.size}`,
-      });
-    }
-    for (const t of session.trades ?? []) {
-      if (t.exit_time == null) continue;
-      if (t.entry_time) {
-        out.push({
-          time: new Date(t.entry_time).getTime() / 1000,
-          position: t.side === "long" ? "belowBar" : "aboveBar",
-          color: t.side === "long" ? "#26a69a" : "#ef5350",
-          shape: t.side === "long" ? "arrowUp" : "arrowDown",
-          text: `${t.side === "long" ? "B" : "S"} ${t.size}`,
-        });
-      }
-      out.push({
-        time: new Date(t.exit_time).getTime() / 1000,
-        position: t.side === "long" ? "aboveBar" : "belowBar",
-        color: t.pnl >= 0 ? "#26a69a" : "#ef5350",
-        shape: "circle",
-        text: `${t.pnl >= 0 ? "+" : ""}${fmtNumber(t.pnl, 0)}`,
-      });
-    }
-    return out;
-  }, [session]);
-
-  const addToChart = useCallback(
-    async (title: string, source: string) => {
-      let overlay = true;
-      try {
-        const c = await api.compileScript(source);
-        if (c.ok) overlay = !!c.ir?.overlay;
-      } catch {
-        /* default overlay */
-      }
-      const ind: ActiveIndicator = {
-        id: `ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        title,
-        source,
-        overlay,
-      };
-      addIndicator(ind);
-    },
-    [addIndicator]
-  );
+  // ---------- chart grid ----------
+  const visPanes = visiblePanes(grid, panes);
+  const gridClass =
+    grid === "1"
+      ? "flex flex-row"
+      : grid === "2h"
+        ? "flex flex-row"
+        : grid === "2v"
+          ? "flex flex-col"
+          : "grid grid-cols-2 grid-rows-2";
 
   return (
     <div className="h-screen w-screen flex flex-col bg-tvbg overflow-hidden select-none">
@@ -413,34 +275,20 @@ export default function App() {
         <DrawingToolbar />
 
         <div className="flex-1 min-w-0 flex flex-col">
-          <div className="relative flex-1 min-h-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full text-[13px] text-[#787b86]">
-                Loading {symbol} · {timeframe}…
-              </div>
-            ) : visibleBars.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-[#787b86] text-[13px]">
-                <div className="text-[15px] text-[#d1d4dc]">No data for {symbol} · {timeframe}</div>
-                <div>
-                  Press <span className="text-primary font-semibold">Load Data</span> in the top bar to
-                  download from Binance/Yahoo, or run{" "}
-                  <code className="text-[#d1d4dc] bg-[#2a2e39] px-1 rounded">python scripts/seed_sample_data.py</code>{" "}
-                  for demo data.
-                </div>
-                {replayActive && <div className="text-[#d1d4dc]">Replay is active — step forward to reveal bars.</div>}
-              </div>
-            ) : (
-              <ChartPanel
-                bars={visibleBars}
-                overlays={overlays}
-                panes={panes}
-                indicators={indicators}
-                indicatorValues={indValues}
+          <div className={cn("relative flex-1 min-h-0 gap-px bg-tvborder", gridClass)}>
+            {visPanes.map((pane, i) => (
+              <ChartPane
+                key={pane.id}
+                pane={pane}
+                active={pane.id === activePane}
+                onFocus={() => setActivePane(pane.id)}
+                session={session}
+                replayActive={replayActive}
+                replayTime={replayTime}
+                paperActive={paperActive}
                 onRemoveIndicator={removeIndicator}
-                priceLines={priceLines}
-                markers={markers}
               />
-            )}
+            ))}
 
             {replayActive && <ReplayBar onStep={step} onExit={() => toggleReplay()} />}
             {paperActive && !replayActive && <PaperBar onStop={() => stopPaper()} />}

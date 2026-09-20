@@ -14,10 +14,17 @@ import {
   PanelBottom,
   BarChart3,
   Table2,
+  Square,
+  Columns2,
+  Rows2,
+  LayoutGrid,
+  Keyboard,
   Plus,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app";
 import { useUIStore, type ChartType } from "@/stores/ui";
+import { useLayoutStore, type GridMode } from "@/stores/layout";
+import { ShortcutsDialog } from "@/components/topbar/ShortcutsDialog";
 import { SymbolSearch } from "@/components/topbar/SymbolSearch";
 import { IndicatorsDialog } from "@/components/topbar/IndicatorsDialog";
 import { ScreenerDialog } from "@/components/topbar/ScreenerDialog";
@@ -44,22 +51,32 @@ type Props = {
 };
 
 export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePaper }: Props) {
-  const { symbol, setSymbol, timeframe, setTimeframe } = useAppStore();
+  const symbol = useAppStore((s) => s.symbol);
+  const timeframe = useAppStore((s) => s.timeframe);
+  const { rightSidebarOpen, toggleRightSidebar, bottomPanelOpen, toggleBottomPanel, setBottomTab } =
+    useUIStore();
   const {
-    chartType,
-    setChartType,
-    showVolume,
-    toggleVolume,
-    rightSidebarOpen,
-    toggleRightSidebar,
-    bottomPanelOpen,
-    toggleBottomPanel,
-    setBottomTab,
-  } = useUIStore();
+    grid,
+    setGrid,
+    panes,
+    activePane,
+    setActiveSymbol,
+    setActiveTimeframe,
+    setActiveChartType,
+    toggleActiveVolume,
+  } = useLayoutStore();
+  const activeCfg = panes.find((p) => p.id === activePane) ?? panes[0];
+  const chartType = activeCfg?.chartType ?? "candles";
+  const showVolume = activeCfg?.showVolume ?? true;
+  const setChartType = setActiveChartType;
+  const toggleVolume = toggleActiveVolume;
+  const setTimeframe = setActiveTimeframe;
 
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [indOpen, setIndOpen] = useState(false);
   const [scrOpen, setScrOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [tfOpen, setTfOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -219,6 +236,74 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
           )}
         </div>
 
+        {/* Chart layout grid */}
+        <div className="relative">
+          <button
+            onClick={() => setGridOpen((v) => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded text-[#787b86] hover:bg-[#2a2e39] hover:text-[#d1d4dc]"
+            title="Chart layout"
+          >
+            {grid === "1" ? (
+              <Square className="w-4 h-4" />
+            ) : grid === "2h" ? (
+              <Columns2 className="w-4 h-4" />
+            ) : grid === "2v" ? (
+              <Rows2 className="w-4 h-4" />
+            ) : (
+              <LayoutGrid className="w-4 h-4" />
+            )}
+          </button>
+          {gridOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setGridOpen(false)} />
+              <div className="absolute top-8 left-0 z-40 bg-tvpanel border border-tvborder rounded shadow-xl p-1.5 flex gap-1">
+                {([
+                  { id: "1", label: "1", cls: "w-5 h-5" },
+                  { id: "2h", label: "2", cls: "w-5 h-5 grid grid-cols-2 gap-0.5" },
+                  { id: "2v", label: "2", cls: "w-5 h-5 grid grid-rows-2 gap-0.5" },
+                  { id: "4", label: "4", cls: "w-5 h-5 grid grid-cols-2 grid-rows-2 gap-0.5" },
+                ] as { id: GridMode; label: string; cls: string }[]).map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => {
+                      setGrid(g.id);
+                      setGridOpen(false);
+                    }}
+                    title={
+                      g.id === "1"
+                        ? "Single chart"
+                        : g.id === "2h"
+                          ? "Two charts side by side"
+                          : g.id === "2v"
+                            ? "Two charts stacked"
+                            : "Four charts"
+                    }
+                    className={cn(
+                      "w-9 h-9 rounded flex items-center justify-center",
+                      grid === g.id ? "bg-primary/20 text-primary" : "text-[#787b86] hover:bg-[#2a2e39]"
+                    )}
+                  >
+                    <span className={g.cls}>
+                      {Array.from({ length: g.id === "1" ? 1 : g.id === "4" ? 4 : 2 }).map((_, i) => (
+                        <span key={i} className="border border-current rounded-[1px]" />
+                      ))}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Keyboard shortcuts */}
+        <button
+          onClick={() => setKeysOpen(true)}
+          className="w-7 h-7 flex items-center justify-center rounded text-[#787b86] hover:bg-[#2a2e39] hover:text-[#d1d4dc]"
+          title="Keyboard shortcuts"
+        >
+          <Keyboard className="w-4 h-4" />
+        </button>
+
         {/* Indicators */}
         <button
           onClick={() => setIndOpen(true)}
@@ -334,6 +419,7 @@ export function TopBar({ replayActive, onToggleReplay, paperActive, onTogglePape
       <SymbolSearch open={symbolOpen} onClose={() => setSymbolOpen(false)} />
       <IndicatorsDialog open={indOpen} onClose={() => setIndOpen(false)} />
       <ScreenerDialog open={scrOpen} onClose={() => setScrOpen(false)} />
+      <ShortcutsDialog open={keysOpen} onClose={() => setKeysOpen(false)} />
     </>
   );
 }

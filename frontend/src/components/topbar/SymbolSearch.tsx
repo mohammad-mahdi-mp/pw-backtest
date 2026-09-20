@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app";
+import { useLayoutStore } from "@/stores/layout";
 import { cn } from "@/lib/utils";
 
 const DEFAULTS = [
@@ -28,7 +29,8 @@ const MARKET_LABEL: Record<string, string> = {
 };
 
 export function SymbolSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { symbol, setSymbol } = useAppStore();
+  const symbol = useAppStore((s) => s.symbol);
+  const setActiveSymbol = useLayoutStore((s) => s.setActiveSymbol);
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +61,7 @@ export function SymbolSearch({ open, onClose }: { open: boolean; onClose: () => 
   if (!open) return null;
 
   const select = (name: string) => {
-    setSymbol(name);
+    setActiveSymbol(name);
     onClose();
   };
 

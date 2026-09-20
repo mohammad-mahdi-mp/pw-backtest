@@ -33,3 +33,7 @@ data/screenshots/
 # Env
 backend/.env
 frontend/tsconfig.tsbuildinfo
+
+# VitePress
+.vitepress/cache/
+.vitepress/dist/

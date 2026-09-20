@@ -21,7 +21,8 @@ Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-
 | 4     | Pine Script engine              | ✅ Full expression parser (ternary/and/or/cmp/math), `ta.crossover/crossunder`, `strategy.*` support |
 | 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list, saved runs |
 | 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
-| 7     | Polish — drawings, screener, MC | ✅ Chart drawings (trend/ray/hline/rect/fib, persisted), local-data screener, Monte Carlo, desktop notifications, layout persistence |
+| 7     | Polish — drawings, screener, MC | ✅ **Done** — chart drawings, local-data screener, Monte Carlo, desktop notifications, multi-chart layouts, shortcut editor, layout persistence |
+| docs  | VitePress documentation site     | ✅ `docs/` — guide (charts, replay, paper, backtest), Pine reference, REST API |
 | 5     | Automated backtest              | ⏳ Placeholder |
 | 6     | Paper / live trading            | ⏳ Planned     |
 | 7     | Polish (drawings, screener, …)  | ⏳ Planned     |
@@ -90,6 +91,14 @@ pnpm dev
     equity, probability of ending below start, drawdown percentiles).
 11. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
     Your layout (symbol, timeframe, chart type, indicators, panels) is restored on reload.
+12. **Multi-chart layouts** — switch between 1, 2 side-by-side, 2 stacked or 4 charts. Each
+    pane keeps its own symbol, timeframe, chart type and indicators; the pane with the blue
+    ring is the active one — the top bar, symbol search, screener and Pine editor all target
+    it. Switch panes by clicking or with <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd>.
+13. **Keyboard shortcuts** — open the keyboard icon in the top bar to rebind any action
+    (replay controls, close position, pane focus, panel toggles) and reset to defaults.
+14. **Documentation** — a full VitePress site lives in `docs/`: `cd docs && pnpm install &&
+    pnpm docs:dev` for the guide, Pine reference and REST API docs.
 
 ## Project layout
 
