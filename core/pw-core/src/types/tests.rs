@@ -13,10 +13,18 @@ fn roundtrip<T: serde::Serialize + serde::de::DeserializeOwned>(v: &T) -> T {
 #[test]
 fn bar_json_field_names_are_contract_exact() {
     let bar = Bar { time: 1_700_000_000_000, open: 60_000.0, high: 60_100.0, low: 59_900.0, close: 60_050.0, volume: 12.5 };
+    // Wire order = declaration order (serializer path, byte-exact contract).
+    let wire = serde_json::to_string(&bar).expect("serialize");
+    assert_eq!(
+        wire,
+        r#"{"time":1700000000000,"open":60000.0,"high":60100.0,"low":59900.0,"close":60050.0,"volume":12.5}"#
+    );
+    // Field presence via Value (its Map is key-sorted; order not meaningful there).
     let v: Value = serde_json::to_value(bar).expect("to value");
     let obj = v.as_object().expect("object");
-    let keys: Vec<&str> = obj.keys().map(String::as_str).collect();
-    assert_eq!(keys, vec!["time", "open", "high", "low", "close", "volume"]);
+    for k in ["time", "open", "high", "low", "close", "volume"] {
+        assert!(obj.contains_key(k), "missing field {k}");
+    }
 }
 
 #[test]
