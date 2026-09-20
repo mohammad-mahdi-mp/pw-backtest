@@ -40,6 +40,7 @@ jobs:
           set +e
           cargo test -p pw-core > /tmp/pwcore.log 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"
+          echo "pw-core cargo test exit: $?"
           exit 0
 
       - name: pw-engine parity gate (50 expected failures until P3-T01)
