@@ -1,0 +1,69 @@
+{
+ "name": "broker_101_gap_open_above_tp_long",
+ "description": "Gap open far above TP \u2192 long exits at the open (better than TP)",
+ "origin": "gap opens",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 60000,
+   "stop_loss": null,
+   "take_profit": 61000,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 61500,
+    "high": 61800,
+    "low": 61400,
+    "close": 61600,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 61500,
+     "exit_time": 1700003600000,
+     "pnl": 143.85,
+     "commission": 6.15,
+     "reason": "Tp"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 61600,
+     "equity": 100143.85
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100143.85,
+  "final_position": null,
+  "final_pending": []
+ }
+}

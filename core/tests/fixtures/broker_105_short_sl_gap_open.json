@@ -1,0 +1,69 @@
+{
+ "name": "broker_105_short_sl_gap_open",
+ "description": "Short SL with gap open above stop exits at the open",
+ "origin": "gap opens",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "short",
+   "size": 0.1,
+   "entry_price": 60000,
+   "stop_loss": 61000,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 61200,
+    "high": 61300,
+    "low": 61100,
+    "close": 61250,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.1,
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 61200,
+     "exit_time": 1700003600000,
+     "pnl": -126.12,
+     "commission": 6.12,
+     "reason": "Sl"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 61250,
+     "equity": 99873.88
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99873.88,
+  "final_position": null,
+  "final_pending": []
+ }
+}

@@ -1,0 +1,89 @@
+{
+ "name": "broker_137_limit_fill_at_exact_low",
+ "description": "Low exactly equals the buy limit \u2192 fills at the limit price",
+ "origin": "pending ordering",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": [
+   {
+    "id": 36,
+    "side": "buy",
+    "order_type": "limit",
+    "size": 0.1,
+    "price": 59500,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60000,
+    "high": 60100,
+    "low": 59500,
+    "close": 59800,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 36,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 59500,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Limit"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 59500,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 5.95
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 59800,
+     "equity": 100024.05
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99994.05,
+  "final_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 59500,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

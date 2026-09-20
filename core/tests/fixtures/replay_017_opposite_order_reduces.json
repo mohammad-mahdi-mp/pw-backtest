@@ -1,0 +1,84 @@
+{
+ "name": "replay_017_opposite_order_reduces",
+ "description": "Opposite market order smaller than position reduces and books partial pnl",
+ "origin": "backend/tests/test_replay_engine.py::test_opposite_order_reduces",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.5,
+   "entry_price": 60000,
+   "stop_loss": null,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 2,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.2,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 61000,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 2,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60998.0,
+     "size": 0.2,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionReduced": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 60998.0,
+     "exit_time": 1700003600000,
+     "closed_size": 0.2,
+     "remaining_size": 0.3,
+     "pnl": 187.40040000000002,
+     "commission": 12.1996,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100187.4004,
+  "final_position": {
+   "side": "long",
+   "size": 0.3,
+   "entry_price": 60000,
+   "entry_time": 1700000000000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

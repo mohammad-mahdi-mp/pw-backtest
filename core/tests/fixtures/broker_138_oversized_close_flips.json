@@ -1,0 +1,95 @@
+{
+ "name": "broker_138_oversized_close_flips",
+ "description": "Close of 0.8 against a 0.3 position closes it and opens a 0.5 short",
+ "origin": "position mutation",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.3,
+   "entry_price": 60000,
+   "stop_loss": null,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 98,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.8,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60200,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 98,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60198.0,
+     "size": 0.8,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.3,
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 60198.0,
+     "exit_time": 1700003600000,
+     "pnl": 41.3406,
+     "commission": 18.059399999999997,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.5,
+     "entry_price": 60198.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 30.099
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100011.2416,
+  "final_position": {
+   "side": "short",
+   "size": 0.5,
+   "entry_price": 60198.0,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

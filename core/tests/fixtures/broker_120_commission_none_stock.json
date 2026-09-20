@@ -1,0 +1,107 @@
+{
+ "name": "broker_120_commission_none_stock",
+ "description": "Stock config: zero commission on both sides; pnl is pure spread cost",
+ "origin": "commission modes",
+ "config": {
+  "symbol": "AAPL",
+  "market": "stock",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 0.01,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "none",
+  "commission_value": 0.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 52,
+    "side": "buy",
+    "order_type": "market",
+    "size": 1.0,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 200.0,
+   "time": 1700000000000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 53,
+    "side": "sell",
+    "order_type": "market",
+    "size": 1.0,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 201.0,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 52,
+     "symbol": "AAPL",
+     "side": "Buy",
+     "price": 200.01999999999998,
+     "size": 1.0,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "AAPL",
+     "side": "Long",
+     "size": 1.0,
+     "entry_price": 200.01999999999998,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 0.0
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 53,
+     "symbol": "AAPL",
+     "side": "Sell",
+     "price": 200.98000000000002,
+     "size": 1.0,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "AAPL",
+     "side": "Long",
+     "size": 1.0,
+     "entry_price": 200.01999999999998,
+     "entry_time": 1700000000000,
+     "exit_price": 200.98000000000002,
+     "exit_time": 1700003600000,
+     "pnl": 0.9600000000000364,
+     "commission": 0.0,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100000.96,
+  "final_position": null,
+  "final_pending": []
+ }
+}

@@ -1,0 +1,100 @@
+{
+ "name": "broker_123_five_digit_forex_short_tp",
+ "description": "5-digit forex prices: short opened with spread/slippage, TP at exact level",
+ "origin": "precision",
+ "config": {
+  "symbol": "EUR/USD",
+  "market": "forex",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.0001,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 58,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.2,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": 1.08
+   },
+   "ref_price": 1.09,
+   "time": 1700000000000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 1.087,
+    "high": 1.088,
+    "low": 1.0795,
+    "close": 1.085,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 58,
+     "symbol": "EUR/USD",
+     "side": "Sell",
+     "price": 1.0898999999999999,
+     "size": 0.2,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "EUR/USD",
+     "side": "Short",
+     "size": 0.2,
+     "entry_price": 1.0898999999999999,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": 1.08,
+     "commission": 0.6000000000000001
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "EUR/USD",
+     "side": "Short",
+     "size": 0.2,
+     "entry_price": 1.0898999999999999,
+     "entry_time": 1700000000000,
+     "exit_price": 1.08,
+     "exit_time": 1700003600000,
+     "pnl": 196.79999999999598,
+     "commission": 1.2000000000000002,
+     "reason": "Tp"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "EUR/USD",
+     "time": 1700003600000,
+     "price": 1.085,
+     "equity": 100196.79999999999
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100196.79999999999,
+  "final_position": null,
+  "final_pending": []
+ }
+}

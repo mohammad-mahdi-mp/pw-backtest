@@ -1,0 +1,89 @@
+{
+ "name": "broker_136_stop_buy_gap_slippage_open",
+ "description": "Open already above the buy stop \u2192 fill at open + slippage",
+ "origin": "gap opens",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": [
+   {
+    "id": 33,
+    "side": "buy",
+    "order_type": "stop",
+    "size": 0.1,
+    "price": 59000,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 59500,
+    "high": 59700,
+    "low": 59300,
+    "close": 59600,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 33,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 59501.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Stop"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 59501.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 5.950100000000001
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 59600,
+     "equity": 100003.94989999999
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99994.0499,
+  "final_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 59501.0,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

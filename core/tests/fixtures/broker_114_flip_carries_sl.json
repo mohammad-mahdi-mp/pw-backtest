@@ -1,0 +1,121 @@
+{
+ "name": "broker_114_flip_carries_sl",
+ "description": "Flip order carries its SL onto the new reversed position",
+ "origin": "position mutation",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.3,
+   "entry_price": 60000,
+   "stop_loss": null,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 42,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.5,
+    "price": null,
+    "stop_loss": 61000,
+    "take_profit": null
+   },
+   "ref_price": 60500,
+   "time": 1700003600000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60600,
+    "high": 61100,
+    "low": 60500,
+    "close": 60900,
+    "volume": 0.0,
+    "time": 1700007200000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 42,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60498.0,
+     "size": 0.5,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.3,
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 60498.0,
+     "exit_time": 1700003600000,
+     "pnl": 131.25060000000002,
+     "commission": 18.149399999999996,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.2,
+     "entry_price": 60498.0,
+     "entry_time": 1700003600000,
+     "stop_loss": 61000,
+     "take_profit": null,
+     "commission": 12.0996
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.2,
+     "entry_price": 60498.0,
+     "entry_time": 1700003600000,
+     "exit_price": 61001.0,
+     "exit_time": 1700007200000,
+     "pnl": -124.8998,
+     "commission": 24.2998,
+     "reason": "Sl"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700007200000,
+     "price": 60900,
+     "equity": 100006.3508
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100006.3508,
+  "final_position": null,
+  "final_pending": []
+ }
+}

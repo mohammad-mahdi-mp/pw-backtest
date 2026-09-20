@@ -1,0 +1,120 @@
+{
+ "name": "broker_109_limit_and_stop_buy_same_bar_order",
+ "description": "Two pending buys trigger in one bar; fill order follows the pending list order",
+ "origin": "pending ordering",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": [
+   {
+    "id": 31,
+    "side": "buy",
+    "order_type": "stop",
+    "size": 0.1,
+    "price": 60500,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   {
+    "id": 32,
+    "side": "buy",
+    "order_type": "limit",
+    "size": 0.1,
+    "price": 59500,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60000,
+    "high": 60600,
+    "low": 59400,
+    "close": 60000,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 31,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60501.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Stop"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 60501.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 6.0501000000000005
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 32,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 59500,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Limit"
+    }
+   },
+   {
+    "PositionIncreased": {
+     "symbol": "BTC/USDT",
+     "size": 0.2,
+     "avg_price": 60000.5,
+     "added": 0.1,
+     "time": 1700003600000,
+     "commission": 5.95
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 60000,
+     "equity": 99987.8999
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99987.99990000001,
+  "final_position": {
+   "side": "long",
+   "size": 0.2,
+   "entry_price": 60000.5,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

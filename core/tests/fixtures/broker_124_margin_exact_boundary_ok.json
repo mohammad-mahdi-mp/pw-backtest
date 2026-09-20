@@ -1,0 +1,60 @@
+{
+ "name": "broker_124_margin_exact_boundary_ok",
+ "description": "Required margin exactly equal to free margin is accepted (1e-9 slack)",
+ "origin": "margin",
+ "config": {
+  "symbol": "EUR/USD",
+  "market": "forex",
+  "balance": 5425.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.0001,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "can_submit",
+   "size": 5.0,
+   "ref_price": 1.085,
+   "message_contains": ""
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 1.085,
+    "high": 1.086,
+    "low": 1.084,
+    "close": 1.0855,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "MarkedToMarket": {
+     "symbol": "EUR/USD",
+     "time": 1700003600000,
+     "price": 1.0855,
+     "equity": 5425.0
+    }
+   }
+  ],
+  "submit": [
+   {
+    "ok": true,
+    "message_contains": "",
+    "message": ""
+   }
+  ],
+  "final_balance": 5425.0,
+  "final_position": null,
+  "final_pending": []
+ }
+}

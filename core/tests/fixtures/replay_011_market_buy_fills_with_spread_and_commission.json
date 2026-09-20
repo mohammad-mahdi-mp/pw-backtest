@@ -1,0 +1,74 @@
+{
+ "name": "replay_011_market_buy_fills_with_spread_and_commission",
+ "description": "Market buy fills at close + spread/2 + slippage; percent commission debited",
+ "origin": "backend/tests/test_replay_engine.py::test_market_buy_fills_with_spread_and_commission",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 1,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60000,
+   "time": 1700000000000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 1,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60002.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 60002.0,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 6.0002
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99993.9998,
+  "final_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 60002.0,
+   "entry_time": 1700000000000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

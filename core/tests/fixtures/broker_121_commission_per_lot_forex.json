@@ -1,0 +1,107 @@
+{
+ "name": "broker_121_commission_per_lot_forex",
+ "description": "Forex per-lot commission: 0.1 lot \u00d7 3.0 = 0.3 per side",
+ "origin": "commission modes",
+ "config": {
+  "symbol": "EUR/USD",
+  "market": "forex",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.0001,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 54,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 1.085,
+   "time": 1700000000000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 55,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 1.086,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 54,
+     "symbol": "EUR/USD",
+     "side": "Buy",
+     "price": 1.0851000000000002,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "EUR/USD",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 1.0851000000000002,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 0.30000000000000004
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 55,
+     "symbol": "EUR/USD",
+     "side": "Sell",
+     "price": 1.0858999999999999,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "EUR/USD",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 1.0851000000000002,
+     "entry_time": 1700000000000,
+     "exit_price": 1.0858999999999999,
+     "exit_time": 1700003600000,
+     "pnl": 7.399999999996899,
+     "commission": 0.6000000000000001,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100007.4,
+  "final_position": null,
+  "final_pending": []
+ }
+}

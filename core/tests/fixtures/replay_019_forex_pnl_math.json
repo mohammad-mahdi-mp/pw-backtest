@@ -1,0 +1,126 @@
+{
+ "name": "replay_019_forex_pnl_math",
+ "description": "EUR/USD round trip: pip math, spread 1 pip, slippage 0.5 pip, per-lot commission",
+ "origin": "backend/tests/test_replay_engine.py::test_forex_pnl_math",
+ "config": {
+  "symbol": "EUR/USD",
+  "market": "forex",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.0001,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 1,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 1.085,
+   "time": 1700000000000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 1.0861,
+    "high": 1.087,
+    "low": 1.086,
+    "close": 1.0865,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 2,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 1.0865,
+   "time": 1700007200000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 1,
+     "symbol": "EUR/USD",
+     "side": "Buy",
+     "price": 1.0851000000000002,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "EUR/USD",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 1.0851000000000002,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 0.30000000000000004
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "EUR/USD",
+     "time": 1700003600000,
+     "price": 1.0865,
+     "equity": 100013.7
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 2,
+     "symbol": "EUR/USD",
+     "side": "Sell",
+     "price": 1.0863999999999998,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700007200000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "EUR/USD",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 1.0851000000000002,
+     "entry_time": 1700000000000,
+     "exit_price": 1.0863999999999998,
+     "exit_time": 1700007200000,
+     "pnl": 12.399999999996346,
+     "commission": 0.6000000000000001,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100012.4,
+  "final_position": null,
+  "final_pending": []
+ }
+}

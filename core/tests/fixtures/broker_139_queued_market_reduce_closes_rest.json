@@ -1,0 +1,92 @@
+{
+ "name": "broker_139_queued_market_reduce_closes_rest",
+ "description": "Queued opposite market order at the open closes the whole position",
+ "origin": "queued markets",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.2,
+   "entry_price": 60000,
+   "stop_loss": null,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60100,
+    "high": 60200,
+    "low": 60000,
+    "close": 60150,
+    "volume": 0.0,
+    "time": 1700003600000
+   },
+   "open_orders": [
+    {
+     "id": 74,
+     "side": "sell",
+     "order_type": "market",
+     "size": 0.2,
+     "price": null,
+     "stop_loss": null,
+     "take_profit": null
+    }
+   ]
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 74,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60098.0,
+     "size": 0.2,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.2,
+     "entry_price": 60000,
+     "entry_time": 1700000000000,
+     "exit_price": 60098.0,
+     "exit_time": 1700003600000,
+     "pnl": 7.580400000000001,
+     "commission": 12.0196,
+     "reason": "Market"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 60150,
+     "equity": 100007.5804
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100007.5804,
+  "final_position": null,
+  "final_pending": []
+ }
+}

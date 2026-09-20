@@ -1,0 +1,15 @@
+[package]
+name = "pw-engine"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Event-driven broker, replay and backtest engine for pw-backtest"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+pw-core = { path = "../pw-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

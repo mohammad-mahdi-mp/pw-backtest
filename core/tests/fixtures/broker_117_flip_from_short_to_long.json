@@ -1,0 +1,95 @@
+{
+ "name": "broker_117_flip_from_short_to_long",
+ "description": "Buy larger than the short position closes it and opens a long remainder",
+ "origin": "position mutation",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "short",
+   "size": 0.2,
+   "entry_price": 61000,
+   "stop_loss": null,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 45,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.5,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60500,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 45,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60502.0,
+     "size": 0.5,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.2,
+     "entry_price": 61000,
+     "entry_time": 1700000000000,
+     "exit_price": 60502.0,
+     "exit_time": 1700003600000,
+     "pnl": 87.4996,
+     "commission": 12.100400000000002,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.3,
+     "entry_price": 60502.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 18.150599999999997
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100069.349,
+  "final_position": {
+   "side": "long",
+   "size": 0.3,
+   "entry_price": 60502.0,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

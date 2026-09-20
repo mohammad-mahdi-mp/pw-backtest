@@ -1,0 +1,100 @@
+{
+ "name": "broker_115_short_open_tp_hit",
+ "description": "Opened short exits exactly at TP when the low touches it",
+ "origin": "exits",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 43,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": 59200
+   },
+   "ref_price": 60000,
+   "time": 1700000000000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 59500,
+    "high": 59800,
+    "low": 59200,
+    "close": 59400,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 43,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 59998.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.1,
+     "entry_price": 59998.0,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": 59200,
+     "commission": 5.9998000000000005
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.1,
+     "entry_price": 59998.0,
+     "entry_time": 1700000000000,
+     "exit_price": 59200,
+     "exit_time": 1700003600000,
+     "pnl": 67.8802,
+     "commission": 11.9198,
+     "reason": "Tp"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 59400,
+     "equity": 100067.8802
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100067.8802,
+  "final_position": null,
+  "final_pending": []
+ }
+}

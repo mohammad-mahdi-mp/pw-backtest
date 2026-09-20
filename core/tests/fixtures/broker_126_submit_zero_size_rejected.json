@@ -1,0 +1,60 @@
+{
+ "name": "broker_126_submit_zero_size_rejected",
+ "description": "Zero or negative size is rejected at submission",
+ "origin": "margin",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "can_submit",
+   "size": 0.0,
+   "ref_price": 60000,
+   "message_contains": "positive"
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60000,
+    "high": 60100,
+    "low": 59900,
+    "close": 60050,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 60050,
+     "equity": 100000.0
+    }
+   }
+  ],
+  "submit": [
+   {
+    "ok": false,
+    "message_contains": "positive",
+    "message": "Size must be positive"
+   }
+  ],
+  "final_balance": 100000.0,
+  "final_position": null,
+  "final_pending": []
+ }
+}

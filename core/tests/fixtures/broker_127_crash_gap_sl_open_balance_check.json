@@ -1,0 +1,119 @@
+{
+ "name": "broker_127_crash_gap_sl_open_balance_check",
+ "description": "Crash gap through the SL books the full loss at the open; balance reflects it",
+ "origin": "gap opens",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 61,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.5,
+    "price": null,
+    "stop_loss": 59000,
+    "take_profit": null
+   },
+   "ref_price": 60000,
+   "time": 1700000000000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 55000,
+    "high": 55500,
+    "low": 54800,
+    "close": 55200,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 55200,
+    "high": 55600,
+    "low": 55100,
+    "close": 55400,
+    "volume": 0.0,
+    "time": 1700007200000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 61,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60002.0,
+     "size": 0.5,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.5,
+     "entry_price": 60002.0,
+     "entry_time": 1700000000000,
+     "stop_loss": 59000,
+     "take_profit": null,
+     "commission": 30.001
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.5,
+     "entry_price": 60002.0,
+     "entry_time": 1700000000000,
+     "exit_price": 55000,
+     "exit_time": 1700003600000,
+     "pnl": -2558.501,
+     "commission": 57.501000000000005,
+     "reason": "Sl"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 55200,
+     "equity": 97441.499
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700007200000,
+     "price": 55400,
+     "equity": 97441.499
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 97441.499,
+  "final_position": null,
+  "final_pending": []
+ }
+}

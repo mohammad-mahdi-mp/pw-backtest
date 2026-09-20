@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "pw-core",
+    "pw-engine",
 ]
 
 # Frozen dependency manifest (EXECUTION_PLAN.md §1.7). Growth only via

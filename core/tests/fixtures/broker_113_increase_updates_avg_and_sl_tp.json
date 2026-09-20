@@ -1,0 +1,105 @@
+{
+ "name": "broker_113_increase_updates_avg_and_sl_tp",
+ "description": "Same-direction fill updates the average entry and overrides SL/TP",
+ "origin": "position mutation",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 60000,
+   "stop_loss": 59000,
+   "take_profit": null,
+   "entry_time": 1700000000000
+  },
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 41,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": 59500,
+    "take_profit": 61500
+   },
+   "ref_price": 60500,
+   "time": 1700003600000
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60200,
+    "high": 60300,
+    "low": 59500,
+    "close": 60100,
+    "volume": 0.0,
+    "time": 1700007200000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 41,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60502.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionIncreased": {
+     "symbol": "BTC/USDT",
+     "size": 0.2,
+     "avg_price": 60251.0,
+     "added": 0.1,
+     "time": 1700003600000,
+     "commission": 6.050200000000001
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.2,
+     "entry_price": 60251.0,
+     "entry_time": 1700000000000,
+     "exit_price": 59499.0,
+     "exit_time": 1700007200000,
+     "pnl": -168.35,
+     "commission": 17.950000000000003,
+     "reason": "Sl"
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700007200000,
+     "price": 60100,
+     "equity": 99831.65000000001
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99831.65000000001,
+  "final_position": null,
+  "final_pending": []
+ }
+}

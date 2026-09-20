@@ -1,0 +1,90 @@
+{
+ "name": "broker_106_queued_market_gap_open_fill",
+ "description": "Queued market order (Pine next-open semantics) fills at the gapped open",
+ "origin": "queued markets",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 61000,
+    "high": 61200,
+    "low": 60900,
+    "close": 61100,
+    "volume": 0.0,
+    "time": 1700003600000
+   },
+   "open_orders": [
+    {
+     "id": 21,
+     "side": "buy",
+     "order_type": "market",
+     "size": 0.1,
+     "price": null,
+     "stop_loss": null,
+     "take_profit": null
+    }
+   ]
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 21,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 61002.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 61002.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 6.100200000000001
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 61100,
+     "equity": 100003.6998
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99993.8998,
+  "final_position": {
+   "side": "long",
+   "size": 0.1,
+   "entry_price": 61002.0,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

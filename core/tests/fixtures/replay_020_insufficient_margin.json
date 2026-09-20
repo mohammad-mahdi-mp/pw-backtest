@@ -1,0 +1,60 @@
+{
+ "name": "replay_020_insufficient_margin",
+ "description": "can_submit rejects orders whose required margin exceeds free margin",
+ "origin": "backend/tests/test_replay_engine.py::test_insufficient_margin",
+ "config": {
+  "symbol": "EUR/USD",
+  "market": "forex",
+  "balance": 1000.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.0001,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "can_submit",
+   "size": 5.0,
+   "ref_price": 1.085,
+   "message_contains": "margin"
+  },
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 1.085,
+    "high": 1.086,
+    "low": 1.084,
+    "close": 1.0855,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "MarkedToMarket": {
+     "symbol": "EUR/USD",
+     "time": 1700003600000,
+     "price": 1.0855,
+     "equity": 1000.0
+    }
+   }
+  ],
+  "submit": [
+   {
+    "ok": false,
+    "message_contains": "margin",
+    "message": "Insufficient margin: need 5425.00, free 1000.00"
+   }
+  ],
+  "final_balance": 1000.0,
+  "final_position": null,
+  "final_pending": []
+ }
+}

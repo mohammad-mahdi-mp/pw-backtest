@@ -1,0 +1,184 @@
+{
+ "name": "broker_134_open_increase_reduce_close_sequence",
+ "description": "Open, increase, partial reduce, final close \u2014 full event chain",
+ "origin": "lifecycle",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 92,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.2,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60000,
+   "time": 1700000000000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 93,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60500,
+   "time": 1700003600000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 94,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60700,
+   "time": 1700007200000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 95,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.2,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 60800,
+   "time": 1700010800000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 92,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60002.0,
+     "size": 0.2,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.2,
+     "entry_price": 60002.0,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 12.0004
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 93,
+     "symbol": "BTC/USDT",
+     "side": "Buy",
+     "price": 60502.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionIncreased": {
+     "symbol": "BTC/USDT",
+     "size": 0.30000000000000004,
+     "avg_price": 60168.666666666664,
+     "added": 0.1,
+     "time": 1700003600000,
+     "commission": 6.050200000000001
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 94,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60698.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700007200000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionReduced": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "entry_price": 60168.666666666664,
+     "entry_time": 1700000000000,
+     "exit_price": 60698.0,
+     "exit_time": 1700007200000,
+     "closed_size": 0.1,
+     "remaining_size": 0.20000000000000004,
+     "pnl": 40.84666666666691,
+     "commission": 12.086666666666668,
+     "reason": "Market"
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 95,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 60798.0,
+     "size": 0.2,
+     "fee": 0.0,
+     "time": 1700010800000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "BTC/USDT",
+     "side": "Long",
+     "size": 0.2,
+     "entry_price": 60168.666666666664,
+     "entry_time": 1700000000000,
+     "exit_price": 60798.0,
+     "exit_time": 1700010800000,
+     "pnl": 101.67333333333383,
+     "commission": 24.193333333333335,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100142.52,
+  "final_position": null,
+  "final_pending": []
+ }
+}

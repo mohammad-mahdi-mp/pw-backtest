@@ -1,0 +1,89 @@
+{
+ "name": "broker_104_sell_stop_gap_open_through",
+ "description": "Gap open below sell stop \u2192 fills at open minus slippage",
+ "origin": "gap opens",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": [
+   {
+    "id": 13,
+    "side": "sell",
+    "order_type": "stop",
+    "size": 0.1,
+    "price": 59000,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 58500,
+    "high": 58800,
+    "low": 58200,
+    "close": 58400,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 13,
+     "symbol": "BTC/USDT",
+     "side": "Sell",
+     "price": 58499.0,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Stop"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "BTC/USDT",
+     "side": "Short",
+     "size": 0.1,
+     "entry_price": 58499.0,
+     "entry_time": 1700003600000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 5.849900000000001
+    }
+   },
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 58400,
+     "equity": 100004.0501
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 99994.1501,
+  "final_position": {
+   "side": "short",
+   "size": 0.1,
+   "entry_price": 58499.0,
+   "entry_time": 1700003600000,
+   "stop_loss": null,
+   "take_profit": null
+  },
+  "final_pending": []
+ }
+}

@@ -1,0 +1,68 @@
+{
+ "name": "broker_111_sell_stop_survives_range",
+ "description": "Sell stop untouched by the bar stays working",
+ "origin": "pending ordering",
+ "config": {
+  "symbol": "BTC/USDT",
+  "market": "crypto",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 1.0,
+  "pip_size": 1.0,
+  "spread_pips": 2.0,
+  "slippage_pips": 1.0,
+  "commission_mode": "percent",
+  "commission_value": 0.001,
+  "initial_position": null,
+  "initial_pending": [
+   {
+    "id": 34,
+    "side": "sell",
+    "order_type": "stop",
+    "size": 0.1,
+    "price": 59000,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ },
+ "steps": [
+  {
+   "kind": "on_bar",
+   "bar": {
+    "open": 60000,
+    "high": 60500,
+    "low": 59500,
+    "close": 60100,
+    "volume": 0.0,
+    "time": 1700003600000
+   }
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "MarkedToMarket": {
+     "symbol": "BTC/USDT",
+     "time": 1700003600000,
+     "price": 60100,
+     "equity": 100000.0
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 100000.0,
+  "final_position": null,
+  "final_pending": [
+   {
+    "id": 34,
+    "side": "sell",
+    "order_type": "stop",
+    "size": 0.1,
+    "price": 59000,
+    "stop_loss": null,
+    "take_profit": null
+   }
+  ]
+ }
+}

@@ -1,0 +1,107 @@
+{
+ "name": "broker_122_jpy_pip_math",
+ "description": "USD/JPY uses 0.01 pip size; 0.98-yen move on 0.1 lot (10k units) = $9800 gross",
+ "origin": "precision",
+ "config": {
+  "symbol": "USD/JPY",
+  "market": "forex",
+  "balance": 100000.0,
+  "leverage": 100,
+  "multiplier": 100000.0,
+  "pip_size": 0.01,
+  "spread_pips": 1.0,
+  "slippage_pips": 0.5,
+  "commission_mode": "per_lot",
+  "commission_value": 3.0,
+  "initial_position": null,
+  "initial_pending": []
+ },
+ "steps": [
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 56,
+    "side": "buy",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 150.0,
+   "time": 1700000000000
+  },
+  {
+   "kind": "market_fill",
+   "order": {
+    "id": 57,
+    "side": "sell",
+    "order_type": "market",
+    "size": 0.1,
+    "price": null,
+    "stop_loss": null,
+    "take_profit": null
+   },
+   "ref_price": 151.0,
+   "time": 1700003600000
+  }
+ ],
+ "expected": {
+  "events": [
+   {
+    "OrderFilled": {
+     "order_id": 56,
+     "symbol": "USD/JPY",
+     "side": "Buy",
+     "price": 150.01,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700000000000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionOpened": {
+     "symbol": "USD/JPY",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 150.01,
+     "entry_time": 1700000000000,
+     "stop_loss": null,
+     "take_profit": null,
+     "commission": 0.30000000000000004
+    }
+   },
+   {
+    "OrderFilled": {
+     "order_id": 57,
+     "symbol": "USD/JPY",
+     "side": "Sell",
+     "price": 150.99,
+     "size": 0.1,
+     "fee": 0.0,
+     "time": 1700003600000,
+     "reason": "Market"
+    }
+   },
+   {
+    "PositionClosed": {
+     "symbol": "USD/JPY",
+     "side": "Long",
+     "size": 0.1,
+     "entry_price": 150.01,
+     "entry_time": 1700000000000,
+     "exit_price": 150.99,
+     "exit_time": 1700003600000,
+     "pnl": 9799.400000000183,
+     "commission": 0.6000000000000001,
+     "reason": "Market"
+    }
+   }
+  ],
+  "submit": [],
+  "final_balance": 109799.40000000018,
+  "final_position": null,
+  "final_pending": []
+ }
+}
