@@ -8,6 +8,10 @@
 > rebuild on a TradingView-grade design system; phases restructured around it.
 > All earlier decisions remain valid (D1–D6). This supersedes `PLAN.md` (web-era, historical)
 > and v2.0 of this document.
+>
+> **Execution layer:** this document is the *product spec*. The AI-agent execution
+> protocol — session ritual, frozen contracts, progress ledger, and the per-task graph
+> with verification commands — lives in **`EXECUTION_PLAN.md`**. Agents: start there.
 
 ---
 
@@ -813,10 +817,12 @@ mobile, options, Dukascopy metals (license).
 ## 12. Immediate next steps
 
 1. Owner approves v2.1 (this file) → commit to `arena/01a0c0dc-pw-backtest`.
-2. **Phase 0 kickoff:** workspace + CI + golden fixture pipeline + **Spike A
-   (LWC v5 on WebKitGTK)** + design-system code (tokens, themes, 20 primitives on
-   the design board).
-3. **Phase 1** → first installable native shell + TradingView-grade chart on fixture
+2. **Build proceeds per `EXECUTION_PLAN.md`** — agents follow the session ritual,
+   pick cards from the progress ledger (frontier rule, §12 of that file), verify
+   each card with its exact command, and commit one task per commit.
+3. **Phase 0:** workspace + CI + golden fixture pipeline + **Spike A (LWC v5 on
+   WebKitGTK)** + contracts in code (types, IPC skeleton, tokens).
+4. **Phase 1** → first installable native shell + TradingView-grade chart on fixture
    data → **owner design sign-off** (the moment the new look is approved before
    feature work scales).
-4. Per phase: implement → gates green → commit on this branch → tag build → demo.
+5. Per phase: cards green → gate card ⭐ (owner demo + sign-off) → next phase.
