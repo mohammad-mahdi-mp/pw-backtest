@@ -1,0 +1,16 @@
+[package]
+name = "pw-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Shared domain types for pw-backtest — frozen contract (EXECUTION_PLAN.md §1.1)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

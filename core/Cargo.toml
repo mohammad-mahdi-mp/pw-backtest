@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "pw-core",
+]
+
+# Frozen dependency manifest (EXECUTION_PLAN.md §1.7). Growth only via
+# `contract:` commits that update that section. Sources pinned per
+# NATIVE_PLAN.md §3.2; entries are added here as their owning crates land.
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+
+# Release profile shared by all crates (perf budget: NATIVE_PLAN.md §8).
+[profile.release]
+lto = "thin"
+codegen-units = 1
