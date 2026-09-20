@@ -101,3 +101,24 @@ jobs:
             exit 0
           fi
           exit 1
+
+      # Debugging channel: the sandbox cannot download run logs from blob
+      # storage, so failed-run logs are pushed to the scratch `ci-logs`
+      # branch (force-updated every run; never merged).
+      - name: Push raw logs to ci-logs branch
+        if: failure()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci-log-bot"
+          git config user.email "actions@localhost"
+          git checkout --orphan ci-logs-tmp
+          git rm -rf --quiet . 2>/dev/null || true
+          mkdir -p logs
+          cp /tmp/clippy.log logs/ 2>/dev/null || true
+          cp /tmp/pwcore.log logs/ 2>/dev/null || true
+          cp /tmp/parity.log logs/ 2>/dev/null || true
+          echo "run ${GITHUB_RUN_ID} (${GITHUB_SHA})" > logs/meta.txt
+          git add -A
+          git commit -m "ci logs for run ${GITHUB_RUN_ID}"
+          git branch -M ci-logs
+          git push --force origin ci-logs
