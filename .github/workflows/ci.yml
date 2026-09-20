@@ -83,18 +83,13 @@ jobs:
           { grep -E "^error" -A 5 /tmp/clippy.log | head -60; } | while read -r line; do
             printf '::error::%s\n' "${line:0:400}"
           done || true
-          printf '::error::=== pwcore.log tail ===\n' || true
-          tail -n 80 /tmp/pwcore.log | while read -r line; do
-            printf '::error::%s\n' "${line:0:400}"
-          done || true
-          printf '::error::=== pwcore summaries/failures ===\n' || true
-          { grep -nE "test result|^failures:|^    [a-z_]+::|panicked at|FAILED" /tmp/pwcore.log | head -40; } | while read -r line; do
-            printf '::error::%s\n' "${line:0:400}"
-          done || true
-          printf '::error::=== parity.log tail ===\n' || true
-          tail -n 15 /tmp/parity.log | while read -r line; do
-            printf '::error::%s\n' "${line:0:400}"
-          done || true
+          printf '::error::=== failing-gate tails (full logs on the ci-logs branch) ===\n' || true
+          if [ "$s_pwcore" != "0" ]; then
+            tail -n 25 /tmp/pwcore.log | while read -r line; do printf '::error::%s\n' "${line:0:400}"; done || true
+          fi
+          if [ "$s_parity" != "0" ]; then
+            tail -n 10 /tmp/parity.log | while read -r line; do printf '::error::%s\n' "${line:0:400}"; done || true
+          fi
 
           if [ "$s_clippy" = "0" ] && [ "$s_pwcore" = "0" ] && [ "$s_parity" = "0" ]; then
             echo "ALL RUST GATES GREEN"
