@@ -1,0 +1,31 @@
+# cargo-deny configuration (P0-T04 gate).
+# Run: cargo deny --manifest-path <ws>/Cargo.toml check licenses sources
+# Advisories are advisory-mode while the dependency tree is tiny; tighten at P2.
+
+[licenses]
+version = 2
+# Crates in this workspace are private (publish = false) and carry no
+# license metadata; skip them.
+private = { ignore = true }
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Unicode-DFS-2016",
+  "MPL-2.0",
+  "Zlib",
+  "CC0-1.0",
+  "BSL-1.0",
+  "OpenSSL",
+  "CDLA-Permissive-2.0",
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
