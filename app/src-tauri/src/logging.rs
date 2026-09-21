@@ -97,6 +97,3 @@ mod tests {
         assert!(content.contains("line"));
     }
 }
-content.contains("line"));
-    }
-}
