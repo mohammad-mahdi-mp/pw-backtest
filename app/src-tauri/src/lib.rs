@@ -31,6 +31,9 @@ pub fn run() -> Result<(), tauri::Error> {
 
     tauri::Builder::default()
         .manage(settings)
-        .invoke_handler(tauri::generate_handler![commands::app_hello])
+        .invoke_handler(tauri::generate_handler![
+            commands::app_hello,
+            commands::screenshots_save
+        ])
         .run(tauri::generate_context!())
 }

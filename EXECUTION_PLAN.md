@@ -83,6 +83,37 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 ⭐ = phase gate card (owner demo + sign-off before the next phase starts).
 
 **Phase 1 delivery notes (this session):**
+- P1-T08 ✅ (pending CI). §5.4 interactions on the P1-T07 chart core:
+  - Native vs custom split: wheel = cursor-anchored time zoom, drag pan,
+    price-scale drag are LWC 5.2.1 native (verified against the installed
+    build's `onMousewheel`/drag handlers). Custom: Shift+drag rubber-band
+    (capture-phase mousedown suppresses LWC's own drag; `coordinateToLogical`
+    maps the band), keyboard arrows ±1 bar / Up-Down zoom (0.8 / 1.25),
+    +/− TF (handles US-layout `Shift+=`), Ctrl+1…7, D/W/M, Alt+L
+    (PriceScaleMode on pane-0 right scale), Alt+S.
+  - Legend `SYM TF · O H L C Δ%` (crosshair-driven, values colored by
+    direction; off-crosshair shows the last bar) + data window (bottom-left
+    recent-8 table, crosshair row pinned on top) — both context-menu
+    toggles. Last-price line (dashed, axis tag, TV-default on) toggleable.
+  - Context menu on every pane: 9 TF items, zoom-to-fit (`fitContent`),
+    scale/last-price/data-window toggles, snapshot, chart-properties stub
+    (P1-T11), Hide pane (layout 4→2→1; pane sources are lossless in the
+    workspace store). decision: "Hide pane" collapses the grid layout —
+    TV-parity would keep a hole; the 1/2/4 grid model has no holes.
+  - Snapshot (Alt+S / 📷 / menu): LWC `takeScreenshot(false,false)` →
+    clipboard (ClipboardItem, guarded) + `screenshots_save` IPC →
+    `<data_dir>/screenshots/<name>-<epoch_ms>.png` (Rust: base64 decode,
+    PNG-magic check, sanitized stem, byte-identical contract fixture
+    core/tests/contracts/screenshots_save.json).
+  - Workspace store gains per-pane {symbol, tf} (4 slots, persisted;
+    toolbar TF buttons + symbol chip now live per active pane).
+  - Hotkey routing: keys act only when focus is on the active pane host
+    (`data-chart-host`) or body — grids/menus/inputs keep their keys.
+  - Verify: 36 new vitest tests (145 total) — range math, hotkey map,
+    legend/data-window, controller methods vs mocked LWC, pane-source
+    store; dev-board gains "bench pan 60fps" (scripted pan, in-page
+    performance.now — same pattern as the P1-T07 bench; the § e2e gate
+    lands in P9-T07). Rust side CI-verified (sandbox has no toolchain).
 - P1-T07 ✅ VERIFIED — run 35602455013 all 7 green (1128c8f). Chart core:
   LWC v5 (5.2.1), 8 §5.2 types (hollow via per-bar overrides, bars via
   native BarSeries, HA transform), native volume pane on by default,
@@ -258,6 +289,7 @@ bt_run(job: { code: string, symbol: string, timeframe: Tf, from: Timestamp,
 bt_run_get(runId: string) -> { run: RunMeta, metrics: Metrics,
   equity: Bar[], trades: TradeRow[], folds?: FoldRow[] }
 app_settings_set(section: string, patch: Record<string, unknown>) -> { ok: boolean }
+screenshots_save({ name?: string, dataBase64: string }) -> { path: string }   // P1-T08
 ```
 (`Tf = "1s"|"1m"|"5m"|"15m"|"1h"|"4h"|"1d"|"1w"|"1M"`, `Provider = "binance"|"yahoo"
 | "oanda" | "dukascopy" | "csv"`, `Sizing = {kind:"percent",pct:f64,atr?:n} |

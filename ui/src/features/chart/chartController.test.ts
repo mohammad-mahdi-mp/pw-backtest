@@ -17,22 +17,39 @@ vi.mock("lightweight-charts", () => ({
   AreaSeries: { type: "Area" },
   BaselineSeries: { type: "Baseline" },
   HistogramSeries: { type: "Histogram" },
+  PriceScaleMode: { Normal: 0, Logarithmic: 1, Percent: 2, IndexedTo100: 3 },
+  LineStyle: { Solid: 0, Dotted: 1, Dashed: 2, LargeDashed: 3, SparseDotted: 4 },
 }));
 
 import { createChart } from "lightweight-charts";
 import { ChartController, type ChartType } from "./chartController";
 import { synthBars } from "./bars";
 
+interface RangeStub {
+  from: number;
+  to: number;
+}
+
 function makeSeriesStub() {
   return {
     setData: vi.fn(),
     applyOptions: vi.fn(),
     priceScale: () => ({ applyOptions: vi.fn() }),
+    createPriceLine: vi.fn<(opts: { price: number; lineStyle: number; axisLabelVisible: boolean }) => { kind: string }>(
+      (opts) => ({ kind: "price-line", price: opts.price }),
+    ),
+    removePriceLine: vi.fn(),
   };
 }
 
 function makeChartStub() {
-  const tsStub = { setVisibleLogicalRange: vi.fn() };
+  const tsStub = {
+    setVisibleLogicalRange: vi.fn(),
+    getVisibleLogicalRange: vi.fn<() => RangeStub | null>(() => null),
+    fitContent: vi.fn(),
+    coordinateToLogical: vi.fn<(x: number) => number | null>(() => null),
+  };
+  const psStub = { applyOptions: vi.fn() };
   return {
     addSeries: vi.fn((..._args: unknown[]) => makeSeriesStub()),
     removeSeries: vi.fn(),
@@ -41,6 +58,10 @@ function makeChartStub() {
     applyOptions: vi.fn(),
     remove: vi.fn(),
     timeScale: () => tsStub,
+    priceScale: vi.fn(() => psStub),
+    subscribeCrosshairMove: vi.fn(),
+    unsubscribeCrosshairMove: vi.fn(),
+    takeScreenshot: vi.fn(() => ({ toDataURL: () => "data:image/png;base64,TEST" })),
   };
 }
 
@@ -214,5 +235,121 @@ describe("theme + panes", () => {
     c.attach(document.createElement("div"));
     c.detach();
     expect(chart.remove).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-T08 — §5.4 interaction surface
+// ---------------------------------------------------------------------------
+
+describe("P1-T08 interactions", () => {
+  it("setLogScale applies PriceScaleMode to the pane-0 price scale", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    c.setLogScale(true);
+    expect(chart.priceScale).toHaveBeenCalledWith("right", 0);
+    const ps = chart.priceScale.mock.results[0]!.value as { applyOptions: ReturnType<typeof vi.fn> };
+    expect(ps.applyOptions).toHaveBeenCalledWith({ mode: 1 }); // Logarithmic
+    expect(c.getLogScale()).toBe(true);
+    c.setLogScale(false);
+    expect(c.getLogScale()).toBe(false);
+    expect(ps.applyOptions).toHaveBeenLastCalledWith({ mode: 0 }); // Normal
+  });
+
+  it("zoomCenter / stepBars / zoomAt clamp to the loaded data", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    c.setBars(synthBars("BTCUSDT", "1h", 100));
+
+    const ts = chart.timeScale();
+    ts.getVisibleLogicalRange.mockReturnValue({ from: 0, to: 100 });
+    c.zoomCenter(0.8);
+    expect(ts.setVisibleLogicalRange).toHaveBeenLastCalledWith({ from: 10, to: 90 });
+
+    ts.getVisibleLogicalRange.mockReturnValue({ from: 10, to: 90 });
+    c.stepBars(-50); // would start at -40 → clamped at 0
+    expect(ts.setVisibleLogicalRange).toHaveBeenLastCalledWith({ from: 0, to: 80 });
+
+    ts.getVisibleLogicalRange.mockReturnValue({ from: 0, to: 80 });
+    c.zoomCenter(100); // far zoom out → clamped to the full data
+    expect(ts.setVisibleLogicalRange).toHaveBeenLastCalledWith({ from: 0, to: 100 });
+
+    ts.getVisibleLogicalRange.mockReturnValue({ from: 0, to: 100 });
+    c.zoomAt(25, 0.5); // cursor-anchored: 25 stays at 25% of the window
+    expect(ts.setVisibleLogicalRange).toHaveBeenLastCalledWith({ from: 12.5, to: 62.5 });
+  });
+
+  it("zoomToFit delegates to LWC fitContent", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    c.setBars(synthBars("BTCUSDT", "1h", 50));
+    c.zoomToFit();
+    expect(chart.timeScale().fitContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("panRangeFromPixels maps a rubber band to a clamped logical range", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    c.setBars(synthBars("BTCUSDT", "1h", 100));
+    const ts = chart.timeScale();
+    ts.coordinateToLogical.mockImplementation((x: number) => x / 2);
+    expect(c.panRangeFromPixels(20, 80)).toEqual({ from: 10, to: 40 });
+    expect(c.panRangeFromPixels(80, 20)).toEqual({ from: 10, to: 40 }); // order-insensitive
+    ts.coordinateToLogical.mockReturnValue(null);
+    expect(c.panRangeFromPixels(1, 2)).toBeNull();
+  });
+
+  it("subscribeCrosshair maps logical → bar index, null off-data, unsubscribes", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    c.setBars(synthBars("BTCUSDT", "1h", 120));
+    const seen: Array<number | null> = [];
+    const off = c.subscribeCrosshair((i) => seen.push(i));
+    const handler = chart.subscribeCrosshairMove.mock.calls[0]![0] as (p: {
+      logical?: number;
+      seriesData: Map<unknown, unknown>;
+    }) => void;
+    handler({ logical: 5.4, seriesData: new Map() });
+    handler({ logical: 5.6, seriesData: new Map() });
+    handler({ logical: 999, seriesData: new Map() }); // past the last bar
+    handler({ seriesData: new Map() }); // crosshair left the chart
+    off();
+    expect(chart.unsubscribeCrosshairMove).toHaveBeenCalledWith(handler);
+    expect(seen).toEqual([5, 6, null, null]);
+  });
+
+  it("last-price line: on by default after setBars, toggleable, recreated on type switch", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    const bars = synthBars("BTCUSDT", "1h", 60);
+    c.setBars(bars);
+    const price = lastSeries();
+    expect(price.createPriceLine).toHaveBeenCalledTimes(1);
+    const opts = price.createPriceLine.mock.calls[0]![0] as {
+      price: number;
+      lineStyle: number;
+      axisLabelVisible: boolean;
+    };
+    expect(opts.price).toBe(bars[bars.length - 1]!.close);
+    expect(opts.lineStyle).toBe(2); // LineStyle.Dashed
+    expect(opts.axisLabelVisible).toBe(true);
+
+    c.setLastPriceLine(false);
+    expect(price.removePriceLine).toHaveBeenCalledTimes(1);
+    c.setLastPriceLine(true);
+    expect(price.createPriceLine).toHaveBeenCalledTimes(2);
+
+    c.setType("line"); // remount → the fresh series carries the line again
+    const fresh = lastSeries();
+    expect(fresh.createPriceLine).toHaveBeenCalledTimes(1);
+  });
+
+  it("snapshotDataUrl takes the LWC screenshot (no crosshair) or null when detached", () => {
+    const c = new ChartController({ themeId: "grey" });
+    c.attach(document.createElement("div"));
+    expect(c.snapshotDataUrl()).toBe("data:image/png;base64,TEST");
+    expect(chart.takeScreenshot).toHaveBeenCalledWith(false, false);
+    c.detach();
+    expect(c.snapshotDataUrl()).toBeNull();
   });
 });

@@ -11,9 +11,21 @@
 
 import { create } from "zustand";
 
-import { appSettingsSet } from "../../lib/ipc";
+import { appSettingsSet, type Tf } from "../../lib/ipc";
+import { isTf } from "../chart/interactions";
 
 export type PaneLayout = 1 | 2 | 4;
+
+/**
+ * Per-pane chart source (P1-T08): symbol + timeframe. Always 4 entries —
+ * panes beyond the current layout keep their source so "hide pane" and
+ * layout switches are lossless. Symbol *search* lands in P1-T10; until then
+ * the symbol is set programmatically / via the store.
+ */
+export interface PaneSource {
+  symbol: string;
+  tf: Tf;
+}
 
 export interface WorkspaceState {
   /** Right widget bar width in px (200–480). */
@@ -28,6 +40,8 @@ export interface WorkspaceState {
   activePane: number;
   bottomTab: string;
   rightTab: string;
+  /** Symbol + timeframe of each of the 4 chart slots. */
+  panes: PaneSource[];
   setRightWidth: (px: number) => void;
   setDockHeight: (px: number) => void;
   toggleRight: () => void;
@@ -39,6 +53,8 @@ export interface WorkspaceState {
   cyclePane: (dir: 1 | -1) => void;
   setBottomTab: (id: string) => void;
   setRightTab: (id: string) => void;
+  /** Replaces the symbol/TF of one chart slot (P1-T08 TF switching). */
+  setPaneSource: (index: number, source: PaneSource) => void;
   /** Test/dev hook — restores defaults and clears persistence. */
   reset: () => void;
 }
@@ -52,6 +68,12 @@ export const LAYOUT_PANES: Record<PaneLayout, number> = { 1: 1, 2: 2, 4: 4 };
 const LS_KEY = "pw.workspace";
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 
+/** The four chart slots (P1-T08); the fixture symbol until P1-T10/P2. */
+const PANE_SLOTS = 4;
+function defaultPanes(): PaneSource[] {
+  return Array.from({ length: PANE_SLOTS }, (): PaneSource => ({ symbol: "BTCUSDT", tf: "1d" }));
+}
+
 const defaults = {
   rightWidth: 280,
   rightVisible: true,
@@ -62,7 +84,18 @@ const defaults = {
   activePane: 0,
   bottomTab: "trade",
   rightTab: "watchlists",
+  panes: defaultPanes(),
 };
+
+/** Validates a persisted pane slot; unknown TFs fall back to 1d. */
+function sanitizePaneSource(raw: unknown): PaneSource {
+  const fallback = { symbol: "BTCUSDT", tf: "1d" as Tf };
+  if (typeof raw !== "object" || raw === null) return fallback;
+  const r = raw as Partial<PaneSource>;
+  const symbol = typeof r.symbol === "string" && r.symbol.length > 0 ? r.symbol : fallback.symbol;
+  const tf = isTf(r.tf) ? r.tf : fallback.tf;
+  return { symbol, tf };
+}
 
 type Persistable = Pick<
   WorkspaceState,
@@ -75,6 +108,7 @@ type Persistable = Pick<
   | "activePane"
   | "bottomTab"
   | "rightTab"
+  | "panes"
 >;
 
 function persist(s: Persistable): void {
@@ -106,6 +140,11 @@ export function hydrateWorkspace(raw: string | null): void {
     if (typeof saved.activePane === "number") s.setActivePane(saved.activePane);
     if (typeof saved.bottomTab === "string") s.setBottomTab(saved.bottomTab);
     if (typeof saved.rightTab === "string") s.setRightTab(saved.rightTab);
+    if (Array.isArray(saved.panes)) {
+      for (let i = 0; i < PANE_SLOTS; i++) {
+        if (saved.panes[i] !== undefined) s.setPaneSource(i, sanitizePaneSource(saved.panes[i]));
+      }
+    }
   } catch {
     // corrupt snapshot — keep defaults
   }
@@ -174,8 +213,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     set({ rightTab: id });
     persist({ ...snapshot(get()) });
   },
+  setPaneSource: (index, source) => {
+    if (index < 0 || index >= PANE_SLOTS) return;
+    const panes = get().panes.map((p, i) => (i === index ? source : p));
+    set({ panes });
+    persist({ ...snapshot(get()) });
+  },
   reset: () => {
-    set({ ...defaults });
+    set({ ...defaults, panes: defaultPanes() });
     try {
       localStorage.removeItem(LS_KEY);
     } catch {
@@ -195,5 +240,6 @@ function snapshot(s: WorkspaceState): Persistable {
     activePane: s.activePane,
     bottomTab: s.bottomTab,
     rightTab: s.rightTab,
+    panes: s.panes,
   };
 }

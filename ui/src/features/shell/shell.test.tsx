@@ -17,6 +17,13 @@ import { hydrateWorkspace, useWorkspace } from "./workspace";
 
 const LS_KEY = "pw.workspace";
 
+const DEFAULT_PANES = [
+  { symbol: "BTCUSDT", tf: "1d" },
+  { symbol: "BTCUSDT", tf: "1d" },
+  { symbol: "BTCUSDT", tf: "1d" },
+  { symbol: "BTCUSDT", tf: "1d" },
+] as const;
+
 function resetStore(): void {
   // Fresh-process defaults (zustand module state survives between tests).
   useWorkspace.setState({
@@ -29,6 +36,7 @@ function resetStore(): void {
     activePane: 0,
     bottomTab: "trade",
     rightTab: "watchlists",
+    panes: [...DEFAULT_PANES],
   });
   localStorage.removeItem(LS_KEY);
 }
@@ -149,6 +157,71 @@ describe("shell frame", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// P1-T08 — per-pane symbol/TF + live toolbar
+// ---------------------------------------------------------------------------
+
+describe("P1-T08 pane sources", () => {
+  beforeEach(resetStore);
+
+  it("toolbar TF buttons switch the active pane's timeframe", () => {
+    render(<AppShell />);
+    const tf1h = screen.getByRole("button", { name: "timeframe 1h" });
+    expect(tf1h.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(tf1h);
+    expect(screen.getByRole("button", { name: "timeframe 1h" }).getAttribute("aria-pressed")).toBe("true");
+    expect(useWorkspace.getState().panes[0]).toEqual({ symbol: "BTCUSDT", tf: "1h" });
+    // the symbol chip mirrors the active pane
+    expect(screen.getByTestId("top-toolbar").textContent).toContain("BTCUSDT");
+    expect(screen.getByTestId("top-toolbar").textContent).toContain("1h");
+  });
+
+  it("each pane keeps its own symbol/TF (layout 2)", () => {
+    render(<AppShell />);
+    fireEvent.click(screen.getByRole("button", { name: "layout 2" }));
+    fireEvent.mouseDown(screen.getByTestId("pane-1")); // focus pane 2
+    fireEvent.click(screen.getByRole("button", { name: "timeframe 4h" }));
+    const panes = useWorkspace.getState().panes;
+    expect(panes[0]).toEqual({ symbol: "BTCUSDT", tf: "1d" });
+    expect(panes[1]).toEqual({ symbol: "BTCUSDT", tf: "4h" });
+  });
+
+  it("per-pane symbol/TF persists across a restart", () => {
+    const first = render(<AppShell />);
+    useWorkspace.getState().setPaneSource(2, { symbol: "ETHUSDT", tf: "1w" });
+    first.unmount();
+    const saved = localStorage.getItem(LS_KEY);
+    expect(saved).not.toBeNull();
+
+    resetStoreStateOnly();
+    hydrateWorkspace(saved);
+    render(<AppShell />);
+    expect(useWorkspace.getState().panes[2]).toEqual({ symbol: "ETHUSDT", tf: "1w" });
+    expect(useWorkspace.getState().panes[0]).toEqual({ symbol: "BTCUSDT", tf: "1d" });
+  });
+
+  it("hydrate rejects a corrupt pane slot (falls back to defaults)", () => {
+    const saved = {
+      rightWidth: 280,
+      rightVisible: true,
+      dockHeight: 200,
+      dockVisible: true,
+      drawingVisible: true,
+      layout: 1,
+      activePane: 0,
+      bottomTab: "trade",
+      rightTab: "watchlists",
+      panes: [{ symbol: "BTCUSDT", tf: "9x" }, "oops", null, { symbol: "ETHUSDT", tf: "1h" }],
+    };
+    hydrateWorkspace(JSON.stringify(saved));
+    const panes = useWorkspace.getState().panes;
+    expect(panes[0]).toEqual({ symbol: "BTCUSDT", tf: "1d" }); // bad tf → default
+    expect(panes[1]).toEqual({ symbol: "BTCUSDT", tf: "1d" }); // garbage → default
+    expect(panes[2]).toEqual({ symbol: "BTCUSDT", tf: "1d" }); // null → default
+    expect(panes[3]).toEqual({ symbol: "ETHUSDT", tf: "1h" }); // valid → kept
+  });
+});
+
 function resetStoreStateOnly(): void {
   useWorkspace.setState({
     rightWidth: 280,
@@ -160,5 +233,6 @@ function resetStoreStateOnly(): void {
     activePane: 0,
     bottomTab: "trade",
     rightTab: "watchlists",
+    panes: [...DEFAULT_PANES],
   });
 }

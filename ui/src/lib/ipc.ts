@@ -293,6 +293,22 @@ export interface AppSettingsSetArgs {
   patch: Record<string, unknown>;
 }
 
+/**
+ * `screenshots_save` (P1-T08, §5.4 Alt+S): persists a chart PNG snapshot
+ * under `<data_dir>/screenshots/`. `name` is a display stem (e.g.
+ * `"BTCUSDT 1d"`); the Rust side sanitizes it and de-duplicates collisions.
+ */
+export interface ScreenshotSaveArgs {
+  name?: string;
+  /** PNG payload, base64-encoded. */
+  dataBase64: string;
+}
+
+export interface ScreenshotSaved {
+  /** Absolute path of the written PNG. */
+  path: string;
+}
+
 // ---------------------------------------------------------------------------
 // Invocation plumbing
 // ---------------------------------------------------------------------------
@@ -308,8 +324,9 @@ export class PwIpcError extends Error {
   }
 }
 
-/** Commands with a live Rust implementation (P0 state: smoke test only). */
-const IMPLEMENTED: ReadonlySet<string> = new Set(["app_hello"]);
+/** Commands with a live Rust implementation. Grows as each card lands its
+ * Rust side; everything else stays a typed `not_implemented` stub. */
+const IMPLEMENTED: ReadonlySet<string> = new Set(["app_hello", "screenshots_save"]);
 
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!IMPLEMENTED.has(command)) {
@@ -358,6 +375,13 @@ export const btRunGet = (runId: string): Promise<BtRunGetResult> =>
 
 export const appSettingsSet = (args: AppSettingsSetArgs): Promise<{ ok: boolean }> =>
   call<{ ok: boolean }>("app_settings_set", { ...args });
+
+/**
+ * Saves a chart PNG snapshot to `<data_dir>/screenshots/` (Alt+S). The Rust
+ * command takes one struct argument (`data`), hence the wrapper shape.
+ */
+export const screenshotsSave = (args: ScreenshotSaveArgs): Promise<ScreenshotSaved> =>
+  call<ScreenshotSaved>("screenshots_save", { data: { ...args } });
 
 // ---------------------------------------------------------------------------
 // Events (§1.4) — names + payload types; subscription runtime lands in P1-T06

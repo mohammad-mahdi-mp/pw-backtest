@@ -13,8 +13,10 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { ChartPane } from "../chart/ChartPane";
+import { chartPaneBinding } from "../chart/interactions";
 import { toast } from "../../components/toast/store";
 import { navigate } from "../../lib/router";
+import type { Tf } from "../../lib/ipc";
 import {
   DOCK_MIN,
   LAYOUT_PANES,
@@ -56,14 +58,24 @@ const Divider = (): React.JSX.Element => <span className="w-px h-5 bg-border mx-
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M"] as const;
 
 function TopToolbar(): React.JSX.Element {
+  const activePane = useWorkspace((s) => s.activePane);
+  const panes = useWorkspace((s) => s.panes);
+  const setPaneSource = useWorkspace((s) => s.setPaneSource);
+  const active = panes[activePane] ?? { symbol: "BTCUSDT", tf: "1d" as Tf };
+
+  const setTf = (tf: Tf): void => setPaneSource(activePane, { ...active, tf });
+  const snapshot = (): void => {
+    chartPaneBinding(`pane-${activePane}`)?.snapshot();
+  };
+
   return (
     <header
       data-testid="top-toolbar"
       className="h-9 flex items-center px-2 gap-1 border-b border-border bg-bg select-none"
     >
       <ToolButton label="symbol search" stub="P1-T10">
-        <span className="font-semibold text-text">BTCUSDT</span>
-        <span className="text-text-3">· 1d · candles</span>
+        <span className="font-semibold text-text">{active.symbol}</span>
+        <span className="text-text-3">· {active.tf} · candles</span>
       </ToolButton>
       <Divider />
       <div role="group" aria-label="timeframes" className="flex items-center gap-0.5">
@@ -71,8 +83,12 @@ function TopToolbar(): React.JSX.Element {
           <button
             key={tf}
             aria-label={`timeframe ${tf}`}
-            className="h-7 min-w-7 px-1 rounded text-[12px] text-text-2 hover:bg-bg-elev hover:text-text"
-            onClick={() => toast.info(`timeframe ${tf} → chart core lands in P1-T07`)}
+            aria-pressed={active.tf === tf}
+            className={
+              "h-7 min-w-7 px-1 rounded text-[12px] " +
+              (active.tf === tf ? "bg-bg-elev text-text" : "text-text-2 hover:bg-bg-elev hover:text-text")
+            }
+            onClick={() => setTf(tf)}
           >
             {tf}
           </button>
@@ -82,7 +98,7 @@ function TopToolbar(): React.JSX.Element {
       <ToolButton label="indicators" stub="P1-T10">ƒx</ToolButton>
       <ToolButton label="alerts" stub="P8">⏱</ToolButton>
       <ToolButton label="replay" stub="P3">↺</ToolButton>
-      <ToolButton label="snapshot" stub="P1-T08">📷</ToolButton>
+      <ToolButton label="snapshot" stub="P1-T08" onClick={snapshot}>📷</ToolButton>
       <ToolButton label="templates" stub="P1-T11">🖌</ToolButton>
       <span className="flex-1" />
       <LayoutButtons />
@@ -164,6 +180,8 @@ function ChartArea(): React.JSX.Element {
   const layout = useWorkspace((s) => s.layout);
   const activePane = useWorkspace((s) => s.activePane);
   const setActivePane = useWorkspace((s) => s.setActivePane);
+  const panes = useWorkspace((s) => s.panes);
+  const setPaneSource = useWorkspace((s) => s.setPaneSource);
   const n = LAYOUT_PANES[layout];
 
   const grid =
@@ -178,26 +196,32 @@ function ChartArea(): React.JSX.Element {
       data-testid="chart-area"
       className={`grid ${grid} gap-px bg-border flex-1 min-w-0 min-h-0`}
     >
-      {Array.from({ length: n }, (_, i) => (
-        <section
-          key={i}
-          data-testid={`pane-${i}`}
-          aria-label={`chart pane ${i + 1}`}
-          tabIndex={0}
-          className={
-            "bg-bg min-w-0 min-h-0 flex items-center justify-center outline-none " +
-            (activePane === i ? "ring-1 ring-inset ring-accent" : "")
-          }
-          onMouseDown={() => setActivePane(i)}
-        >
-          <ChartPane
-            symbol="BTCUSDT"
-            tf="1d"
-            barCount={n === 4 ? 600 : 900}
-            testid={`chart-${i}`}
-          />
-        </section>
-      ))}
+      {Array.from({ length: n }, (_, i) => {
+        const src = panes[i] ?? { symbol: "BTCUSDT", tf: "1d" as Tf };
+        return (
+          <section
+            key={i}
+            data-testid={`pane-${i}`}
+            aria-label={`chart pane ${i + 1}`}
+            tabIndex={0}
+            data-chart-host
+            className={
+              "bg-bg min-w-0 min-h-0 flex items-center justify-center outline-none " +
+              (activePane === i ? "ring-1 ring-inset ring-accent" : "")
+            }
+            onMouseDown={() => setActivePane(i)}
+          >
+            <ChartPane
+              symbol={src.symbol}
+              tf={src.tf}
+              paneIndex={i}
+              onTfChange={(tf) => setPaneSource(i, { ...src, tf })}
+              barCount={n === 4 ? 600 : 900}
+              testid={`chart-${i}`}
+            />
+          </section>
+        );
+      })}
     </div>
   );
 }

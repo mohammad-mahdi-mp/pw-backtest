@@ -33,13 +33,20 @@ import { useAppearance } from "../design/settings";
 import { navigate } from "../lib/router";
 import { ChartPane } from "../features/chart/ChartPane";
 import { CHART_TYPES, ChartController, type ChartType } from "../features/chart/chartController";
+import { chartPaneBinding } from "../features/chart/interactions";
 import { synthBars } from "../features/chart/bars";
 
-/** Chart demo + live 100k-bar bench (P1-T07 gate, in-page performance.now). */
+/**
+ * Chart demo + live benches (P1-T07 render gate, P1-T08 interaction hooks,
+ * all in-page performance.now — the § e2e perf gate lands in P9-T07).
+ */
 function ChartDemo(): React.JSX.Element {
   const [type, setType] = useState<ChartType>("candles");
   const [bench, setBench] = useState<string | null>(null);
   const [panes, setPanes] = useState<number | null>(null);
+  const [fps, setFps] = useState<string | null>(null);
+  const [logLabel, setLogLabel] = useState<"normal" | "log">("normal");
+  const [lastPrice, setLastPrice] = useState(true);
   const ctrl = useRef<ChartController | null>(null);
 
   const runBench = (): void => {
@@ -59,6 +66,27 @@ function ChartDemo(): React.JSX.Element {
         );
       }),
     );
+  };
+
+  // P1-T08: scripted-pan 60 fps hook (same in-page performance.now pattern as
+  // the P1-T07 bench). Shakes the visible range back and forth for ~2 s and
+  // counts frames; the § e2e gate lands in P9-T07.
+  const runFpsBench = (): void => {
+    const c = ctrl.current;
+    if (!c) return;
+    let frames = 0;
+    let dir = 1;
+    const t0 = performance.now();
+    const DURATION = 2000;
+    const step = (): void => {
+      frames += 1;
+      dir = -dir;
+      c.shiftRange(3 * dir);
+      if (performance.now() - t0 < DURATION) requestAnimationFrame(step);
+      else setFps(`scripted pan ${DURATION / 1000}s → ${frames} frames ≈ ${Math.round((frames / DURATION) * 1000)} fps (target 60)`);
+    };
+    setFps("running…");
+    requestAnimationFrame(step);
   };
 
   return (
@@ -87,8 +115,43 @@ function ChartDemo(): React.JSX.Element {
         <button data-testid="chart-bench" className="h-6 px-2 rounded text-[11px] text-accent hover:bg-bg-elev" onClick={runBench}>
           bench 100k
         </button>
+        <button className="h-6 px-2 rounded text-[11px] text-text-2 hover:bg-bg-elev" onClick={runFpsBench}>
+          bench pan 60fps
+        </button>
+        <button
+          className="h-6 px-2 rounded text-[11px] text-text-2 hover:bg-bg-elev"
+          onClick={() => {
+            const c = ctrl.current;
+            if (c) {
+              const next = !c.getLogScale();
+              c.setLogScale(next);
+              setLogLabel(next ? "log" : "normal");
+            }
+          }}
+        >
+          scale: <span data-testid="chart-scale-label">{logLabel}</span>
+        </button>
+        <button
+          className="h-6 px-2 rounded text-[11px] text-text-2 hover:bg-bg-elev"
+          onClick={() => {
+            const c = ctrl.current;
+            if (c) {
+              const next = !c.lastPriceLineEnabled;
+              c.setLastPriceLine(next);
+              setLastPrice(next);
+            }
+          }}
+        >
+          last-price: {lastPrice ? "on" : "off"}
+        </button>
+        <button
+          className="h-6 px-2 rounded text-[11px] text-accent hover:bg-bg-elev"
+          onClick={() => chartPaneBinding("pane-dev")?.snapshot()}
+        >
+          snapshot
+        </button>
       </div>
-      <div className="rounded border border-border overflow-hidden" style={{ height: 340 }}>
+      <div className="rounded border border-border overflow-hidden" style={{ height: 340 }} data-chart-host>
         <ChartPane
           symbol="BTCUSDT"
           tf="1m"
@@ -104,6 +167,11 @@ function ChartDemo(): React.JSX.Element {
       <p className="text-[11px] text-text-3 mt-1" data-testid="chart-bench-result">
         {bench ?? "volume pane on by default · press “bench 100k” for the perf gate (§: first paint < 300 ms)"}
         {panes !== null ? ` · panes: ${panes}` : ""}
+        {fps !== null ? ` · ${fps}` : ""}
+      </p>
+      <p className="text-[10px] text-text-3 mt-1">
+        P1-T08: wheel = zoom (cursor) · drag = pan · Shift+drag = band-zoom · ←/→ = ±1 bar · ↑/↓ = zoom ·
+        +/− = TF · Ctrl+1…7 = TF · D/W/M = 1d/1w/1M · Alt+L = log · Alt+S = snapshot · right-click = menu
       </p>
     </div>
   );
