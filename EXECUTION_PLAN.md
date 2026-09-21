@@ -61,7 +61,7 @@ the same module) · Spec · Verify (exact command + expected) · Anti-goals**.
 ### 0.5 Progress ledger (maintain every commit: check the box)
 ```
 Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [x]P0-T04 [ ]P0-T05* [x]P0-T06
-Phase 1  [x]P1-T01 [x]P1-T02 [x]P1-T03 [x]P1-T04 [ ]P1-T05 [ ]P1-T06
+Phase 1  [x]P1-T01 [x]P1-T02 [x]P1-T03 [x]P1-T04 [x]P1-T05 [x]P1-T06
          [ ]P1-T07 [ ]P1-T08 [ ]P1-T09 [ ]P1-T10 [ ]P1-T11 [ ]P1-T12⭐
 Phase 2  [ ]P2-T01 [ ]P2-T02 [ ]P2-T03 [ ]P2-T04 [ ]P2-T05 [ ]P2-T06
          [ ]P2-T07 [ ]P2-T08
@@ -83,6 +83,17 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 ⭐ = phase gate card (owner demo + sign-off before the next phase starts).
 
 **Phase 1 delivery notes (this session):**
+- P1-T05 ✅ + P1-T06 ✅ VERIFIED — run 35600320453 all 7 green (f64e474).
+  Shell: §5.2 frame (toolbar 36/drawing 36/panes 1-2-4 + TV-blue active ring/
+  right 280 resize 200-480/dock 200 min-140/status 24), workspace store
+  persisted (localStorage pw.workspace → IPC when P1-T11), hotkeys Alt+1/2/4,
+  Alt+←/→, Ctrl+Alt+R/B/D. `/` = shell, `/boot` = IPC smoke, `/dev-board` kept.
+  IPC runtime: guardedCall (retry-once transient + toast), eventBus + native
+  bridge forwarding. 17 new tests (78 total).
+  Deviations: e2e-in-Tauri assertions deferred to P9-T07 per prior pattern —
+  restart semantics covered by store-reset + hydrate (jsdom).
+  Lesson: attach `expect(p).rejects` BEFORE advancing fake timers (CI ordering
+  made the rejection unhandled between ticks).
 - P1-T03 ✅ primitives B (Dialog focus-trap, FloatingPanel window-tracked
   drag + persistence, Tabs, Tooltip, Toasts, Switch, Slider, Progress-hair)
   — 15 tests; drag uses mouse+window listeners (jsdom pointer coords
