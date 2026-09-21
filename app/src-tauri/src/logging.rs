@@ -3,6 +3,7 @@
 //! [`MakeWriter`] over an append-mode [`std::fs::File`] suffices for Phase 0.
 
 use std::fs::{File, OpenOptions};
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -94,5 +95,8 @@ mod tests {
         w.flush().unwrap();
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(content.contains("line"));
+    }
+}
+content.contains("line"));
     }
 }
