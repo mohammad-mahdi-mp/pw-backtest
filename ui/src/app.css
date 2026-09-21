@@ -120,6 +120,11 @@ code {
   color: var(--pw-accent);
 }
 
+@keyframes pw-indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
+
 /* --- appearance dev switcher (P1-T01; replaced by real settings in P1-T11) */
 .switcher {
   margin-top: 18px;
