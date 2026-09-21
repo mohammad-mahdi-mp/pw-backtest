@@ -1,0 +1,11 @@
+
+> spike-lwc-web@0.1.0 tauri /home/runner/work/pw-backtest/pw-backtest/spikes/lwc-webkitgtk/web
+> cd ../app && tauri "dev"
+
+     Running BeforeDevCommand (`pnpm dev`)
+
+thread '<unnamed>' (4472) panicked at crates/tauri-cli/src/dev.rs:207:31:
+failed to run `pnpm dev`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+Aborted (core dumped)
+ ELIFECYCLE  Command failed with exit code 134.
