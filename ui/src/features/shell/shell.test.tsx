@@ -4,8 +4,13 @@
  * persistence through the localStorage fallback.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+
+// The shell mounts real LWC charts per pane — jsdom has no canvas.
+vi.mock("../chart/ChartPane", () => ({
+  ChartPane: (): React.JSX.Element => <div data-testid="chart-canvas" />,
+}));
 
 import { AppShell } from "./AppShell";
 import { hydrateWorkspace, useWorkspace } from "./workspace";

@@ -4,7 +4,7 @@
  * CSS vars). Grows with each primitives card (P1-T03, P1-T04 add theirs).
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "../components/button/Button";
 import { IconButton } from "../components/icon-button/IconButton";
@@ -31,6 +31,83 @@ import { BUILT_IN_THEMES } from "../design/themes";
 import { themeVars, type Density, type FontSize } from "../design/applyTheme";
 import { useAppearance } from "../design/settings";
 import { navigate } from "../lib/router";
+import { ChartPane } from "../features/chart/ChartPane";
+import { CHART_TYPES, ChartController, type ChartType } from "../features/chart/chartController";
+import { synthBars } from "../features/chart/bars";
+
+/** Chart demo + live 100k-bar bench (P1-T07 gate, in-page performance.now). */
+function ChartDemo(): React.JSX.Element {
+  const [type, setType] = useState<ChartType>("candles");
+  const [bench, setBench] = useState<string | null>(null);
+  const [panes, setPanes] = useState<number | null>(null);
+  const ctrl = useRef<ChartController | null>(null);
+
+  const runBench = (): void => {
+    const c = ctrl.current;
+    if (!c) return;
+    const t0 = performance.now();
+    const bars = synthBars("BTCUSDT", "1m", 100_000);
+    const genMs = performance.now() - t0;
+    const t1 = performance.now();
+    c.setBars(bars);
+    const setDataMs = performance.now() - t1;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const paintMs = performance.now() - t1;
+        setBench(
+          `100k bars → synth ${genMs.toFixed(0)} ms · setData ${setDataMs.toFixed(0)} ms · first paint ≤ ${paintMs.toFixed(0)} ms`,
+        );
+      }),
+    );
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center gap-1 flex-wrap mb-2">
+        {CHART_TYPES.map((t) => (
+          <button
+            key={t}
+            data-testid={`chart-type-${t}`}
+            onClick={() => setType(t)}
+            className={
+              "h-6 px-2 rounded text-[11px] " +
+              (type === t ? "bg-bg-elev text-text" : "text-text-2 hover:bg-bg-elev")
+            }
+          >
+            {t}
+          </button>
+        ))}
+        <span className="flex-1" />
+        <button className="h-6 px-2 rounded text-[11px] text-text-2 hover:bg-bg-elev" onClick={() => { ctrl.current?.addPricePane(); setPanes(ctrl.current?.paneCount ?? null); }}>
+          + pane
+        </button>
+        <button className="h-6 px-2 rounded text-[11px] text-text-2 hover:bg-bg-elev" onClick={() => { ctrl.current?.removeLastPane(); setPanes(ctrl.current?.paneCount ?? null); }}>
+          − pane
+        </button>
+        <button data-testid="chart-bench" className="h-6 px-2 rounded text-[11px] text-accent hover:bg-bg-elev" onClick={runBench}>
+          bench 100k
+        </button>
+      </div>
+      <div className="rounded border border-border overflow-hidden" style={{ height: 340 }}>
+        <ChartPane
+          symbol="BTCUSDT"
+          tf="1m"
+          barCount={1500}
+          chartType={type}
+          testid="chart-demo"
+          onController={(c) => {
+            ctrl.current = c;
+            setPanes(c.paneCount);
+          }}
+        />
+      </div>
+      <p className="text-[11px] text-text-3 mt-1" data-testid="chart-bench-result">
+        {bench ?? "volume pane on by default · press “bench 100k” for the perf gate (§: first paint < 300 ms)"}
+        {panes !== null ? ` · panes: ${panes}` : ""}
+      </p>
+    </div>
+  );
+}
 
 /** Scoped theme surface: the --pw-* vars are re-declared on this div, so
  * everything below renders in that theme regardless of the global setting. */
@@ -234,6 +311,11 @@ function AllStates(): React.JSX.Element {
             <EmptyState title="No alerts yet" hint="Alerts fire on price crosses, indicator values and strategy events." action={{ label: "Create alert", onClick: () => toast.info("alert editor opens in P8") }} />
           </div>
         </Row>
+      </Section>
+
+
+      <Section title="Chart core (P1-T07) — LWC v5">
+        <ChartDemo />
       </Section>
 
       <Section title="Menus">

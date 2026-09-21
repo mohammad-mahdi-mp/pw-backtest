@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { EmptyState } from "../../components/empty-state/EmptyState";
+import { ChartPane } from "../chart/ChartPane";
 import { toast } from "../../components/toast/store";
 import { navigate } from "../../lib/router";
 import {
@@ -190,14 +190,12 @@ function ChartArea(): React.JSX.Element {
           }
           onMouseDown={() => setActivePane(i)}
         >
-          {i === 0 ? (
-            <EmptyState
-              title="Chart arrives in P1-T07"
-              hint="LWC v5 price + indicator panes render here"
-            />
-          ) : (
-            <span className="text-text-3 text-[12px]">pane {i + 1}</span>
-          )}
+          <ChartPane
+            symbol="BTCUSDT"
+            tf="1d"
+            barCount={n === 4 ? 600 : 900}
+            testid={`chart-${i}`}
+          />
         </section>
       ))}
     </div>
