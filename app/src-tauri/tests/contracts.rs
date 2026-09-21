@@ -4,6 +4,9 @@
 //! of a command's payload. The test deserializes the fixture into the real
 //! Rust type and re-serializes it — the result must be **byte-identical**.
 //! `ui/src/lib/ipc.ts` mirrors these shapes; any drift fails here first.
+//! (Test crate: panic/unwrap are the intended failure mode — allowed below.)
+
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use pw_app_lib::commands::HelloInfo;
 
