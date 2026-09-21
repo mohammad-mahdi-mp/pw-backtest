@@ -61,7 +61,7 @@ the same module) · Spec · Verify (exact command + expected) · Anti-goals**.
 ### 0.5 Progress ledger (maintain every commit: check the box)
 ```
 Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [x]P0-T04 [ ]P0-T05* [x]P0-T06
-Phase 1  [x]P1-T01 [x]P1-T02 [x]P1-T03 [x]P1-T04 [x]P1-T05 [x]P1-T06
+Phase 1  [x]P1-T01 [x]P1-T02 [x]P1-T03 [x]P1-T04 [x]P1-T05 [x]P1-T06 [x]P1-T07
          [ ]P1-T07 [ ]P1-T08 [ ]P1-T09 [ ]P1-T10 [ ]P1-T11 [ ]P1-T12⭐
 Phase 2  [ ]P2-T01 [ ]P2-T02 [ ]P2-T03 [ ]P2-T04 [ ]P2-T05 [ ]P2-T06
          [ ]P2-T07 [ ]P2-T08
@@ -83,6 +83,18 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 ⭐ = phase gate card (owner demo + sign-off before the next phase starts).
 
 **Phase 1 delivery notes (this session):**
+- P1-T07 ✅ VERIFIED — run 35602455013 all 7 green (1128c8f). Chart core:
+  LWC v5 (5.2.1), 8 §5.2 types (hollow via per-bar overrides, bars via
+  native BarSeries, HA transform), native volume pane on by default,
+  seeded fixture provider + loadBars IPC-first fallback, shell panes live,
+  dev-board 100k bench (in-page performance.now; § e2e perf gate lands
+  P9-T07). 27 tests (109 total).
+- PROCESS LESSON (bit once): scripts/check-manifest-contract.sh fails any
+  push that touches ui/package.json / ui/pnpm-lock.yaml / core+app
+  Cargo.toml without a `contract:` commit in the push range. Fixed by
+  splitting the delivery: bdd8c49 `contract(ui): land the LWC v5 slot…`
+  + 1128c8f feature (force-with-lease restructure of the arena branch).
+  RULE: dep changes always ship as their own `contract:` commit.
 - P1-T05 ✅ + P1-T06 ✅ VERIFIED — run 35600320453 all 7 green (f64e474).
   Shell: §5.2 frame (toolbar 36/drawing 36/panes 1-2-4 + TV-blue active ring/
   right 280 resize 200-480/dock 200 min-140/status 24), workspace store
