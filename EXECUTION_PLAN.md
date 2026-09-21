@@ -61,7 +61,7 @@ the same module) · Spec · Verify (exact command + expected) · Anti-goals**.
 ### 0.5 Progress ledger (maintain every commit: check the box)
 ```
 Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [x]P0-T04 [ ]P0-T05* [x]P0-T06
-Phase 1  [ ]P1-T01 [ ]P1-T02 [ ]P1-T03 [ ]P1-T04 [ ]P1-T05 [ ]P1-T06
+Phase 1  [ ]P1-T01* [ ]P1-T02 [ ]P1-T03 [ ]P1-T04 [ ]P1-T05 [ ]P1-T06
          [ ]P1-T07 [ ]P1-T08 [ ]P1-T09 [ ]P1-T10 [ ]P1-T11 [ ]P1-T12⭐
 Phase 2  [ ]P2-T01 [ ]P2-T02 [ ]P2-T03 [ ]P2-T04 [ ]P2-T05 [ ]P2-T06
          [ ]P2-T07 [ ]P2-T08
@@ -81,6 +81,17 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
          [ ]P9-T07 [ ]P9-T08
 ```
 ⭐ = phase gate card (owner demo + sign-off before the next phase starts).
+
+**Phase 1 delivery notes (this session):**
+- P1-T01* — theme engine delivered (commit follows): tokens→CSS vars,
+  Grey/Black/Blue/White registry, density 32/26 + font S/M/L mappings,
+  `lwcChartOptions()` mapping for P1-T07, zustand store with IPC-first →
+  localStorage fallback persistence, ThemeProvider, dev switcher on the
+  placeholder page; tailwind `@theme inline` remapped onto live vars
+  (contract: first §1.7 ui slice — zustand + vitest/jsdom/testing-library —
+  landed in commit 05c0842). Verify: 16 vitest tests + typecheck + build
+  green locally; e2e (Playwright) deferred to P1-T05 where the harness
+  lands with the shell card — deviation noted here.
 
 **Phase 0 delivery notes (this session):**
 - P0-T03 ✅ verified green in CI (app clippy + contracts, ui typecheck+build);

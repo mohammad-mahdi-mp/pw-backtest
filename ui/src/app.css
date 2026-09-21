@@ -1,28 +1,33 @@
 @import "tailwindcss";
 
 /*
- * Design tokens (NATIVE_PLAN.md §5.1, default "Grey" theme).
- * The TS source of truth is ui/src/design/tokens.ts (P0-T06); the theme
- * engine (P1-T01) will generate this block + CSS vars from it at build time
- * so themes can swap every value.
+ * Design tokens (NATIVE_PLAN.md §5.1).
+ *
+ * `tokens.ts` is the frozen §1.6 source of truth; `applyTheme.ts` writes the
+ * live values into the `--pw-*` variables on :root (theme engine, P1-T01).
+ * The tailwind `@theme inline` block below maps utilities onto those vars so
+ * every theme/density/font switch is instant — zero raw hex in components.
  */
-@theme {
-  --color-bg: #131722;
-  --color-bg-elev: #1e222d;
-  --color-border: #2a2e39;
-  --color-text: #d1d4dc;
-  --color-text-2: #b2b5be;
-  --color-text-3: #787b86;
-  --color-accent: #2962ff;
-  --color-up: #089981;
-  --color-down: #f23645;
-  --color-grid: #1e222d;
-  --color-crosshair: #758696;
+@theme inline {
+  --color-bg: var(--pw-bg);
+  --color-bg-elev: var(--pw-bg-elev);
+  --color-border: var(--pw-border);
+  --color-text: var(--pw-text);
+  --color-text-2: var(--pw-text-2);
+  --color-text-3: var(--pw-text-3);
+  --color-accent: var(--pw-accent);
+  --color-up: var(--pw-up);
+  --color-down: var(--pw-down);
+  --color-grid: var(--pw-grid);
+  --color-crosshair: var(--pw-crosshair);
 }
 
+/* Static fallbacks (Grey) — applyTheme.ts overrides these at runtime. */
 :root {
   --pw-bg: #131722;
   --pw-bg-elev: #1e222d;
+  --pw-bg-chart-top: #131722;
+  --pw-bg-chart-bottom: #10141d;
   --pw-border: #2a2e39;
   --pw-text: #d1d4dc;
   --pw-text-2: #b2b5be;
@@ -30,9 +35,15 @@
   --pw-accent: #2962ff;
   --pw-up: #089981;
   --pw-down: #f23645;
+  --pw-up-15: rgba(8, 153, 129, 0.15);
+  --pw-down-15: rgba(242, 54, 69, 0.15);
+  --pw-grid: #1e222d;
+  --pw-crosshair: #758696;
+  --pw-row-h: 32px;
+  --pw-font-size: 13px;
 }
 
-/* Phase-0 placeholder styling (design system lands in P1-T01/T02). */
+/* Phase-0 placeholder styling (real components land from P1-T02 on). */
 
 * {
   box-sizing: border-box;
@@ -43,7 +54,7 @@ body {
   background: var(--pw-bg);
   color: var(--pw-text);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 13px;
+  font-size: var(--pw-font-size);
   font-variant-numeric: tabular-nums;
 }
 
@@ -107,4 +118,35 @@ dd {
 
 code {
   color: var(--pw-accent);
+}
+
+/* --- appearance dev switcher (P1-T01; replaced by real settings in P1-T11) */
+.switcher {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pw-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.switcher label {
+  color: var(--pw-text-3);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.switcher select {
+  background: var(--pw-bg);
+  color: var(--pw-text);
+  border: 1px solid var(--pw-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.switcher select:focus-visible {
+  outline: 1px solid var(--pw-accent);
 }

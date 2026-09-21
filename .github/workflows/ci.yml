@@ -228,6 +228,9 @@ jobs:
       - name: Typecheck
         run: pnpm --dir ui typecheck
 
+      - name: Unit tests (vitest, jsdom)
+        run: pnpm --dir ui test
+
       - name: Build
         run: pnpm --dir ui build
 
