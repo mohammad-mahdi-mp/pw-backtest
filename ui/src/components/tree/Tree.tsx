@@ -71,9 +71,9 @@ export function Tree({
   const setActive = (id: string | null): void => {
     setActiveId(id);
     queueMicrotask(() => {
-      listRef.current
-        ?.querySelector<HTMLElement>(`[data-tree-id="${id}"]`)
-        ?.scrollIntoView({ block: "nearest" });
+      const el = listRef.current?.querySelector<HTMLElement>(`[data-tree-id="${id}"]`);
+      // jsdom lacks scrollIntoView — runtime guard keeps tests honest
+      if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "nearest" });
     });
   };
 
