@@ -1,0 +1,27 @@
+[package]
+name = "spike-lwc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.78"
+description = "P0-T05 decision spike: Lightweight Charts v5 rendering on WebKitGTK"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2" }
+
+[workspace]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+
+[lints]
+workspace = true

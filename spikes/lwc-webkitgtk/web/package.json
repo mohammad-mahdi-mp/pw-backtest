@@ -1,0 +1,22 @@
+{
+  "name": "spike-lwc-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "tauri": "cd ../app && tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
+    "lightweight-charts": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  }
+}

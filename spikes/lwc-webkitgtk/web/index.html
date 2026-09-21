@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LWC v5 × WebKitGTK spike</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #131722; overflow: hidden; }
+      #chart { position: absolute; inset: 0; }
+      #overlay {
+        position: absolute; top: 12px; left: 12px; z-index: 10;
+        font: 12px/1.6 ui-monospace, monospace; color: #d1d4dc;
+        background: rgba(19, 23, 34, 0.85); border: 1px solid #2a2e39;
+        border-radius: 6px; padding: 10px 14px; white-space: pre;
+      }
+      #overlay button {
+        font: 12px ui-monospace, monospace; color: #d1d4dc; background: #2962ff;
+        border: 0; border-radius: 4px; padding: 6px 10px; margin-top: 8px; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+    <div id="overlay">booting…</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
