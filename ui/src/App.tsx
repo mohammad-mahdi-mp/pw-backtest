@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-
-/** Mirror of the Rust `HelloInfo` payload (contract: ui/src/lib/ipc.ts, P0-T06). */
-interface HelloInfo {
-  message: string;
-  version: string;
-  configDir: string;
-  configLoaded: boolean;
-}
+import { appHello, PwIpcError, type HelloInfo } from "./lib/ipc";
 
 type LoadState =
   | { kind: "loading" }
@@ -17,25 +9,24 @@ type LoadState =
 
 /**
  * Phase-0 placeholder page: proves the Tauri IPC bridge by rendering the
- * `app_hello` payload. Replaced by the real shell in Phase 1 (P1-T05).
+ * `app_hello` payload (via the typed contract layer). Replaced by the real
+ * shell in Phase 1 (P1-T05).
  */
 export default function App() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    invoke<HelloInfo>("app_hello")
+    appHello()
       .then((info) => {
         if (!cancelled) setState({ kind: "ready", info });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const msg = String(err);
-        // No Tauri internals ⇒ we are in a plain browser (vite preview).
-        if (/window\.__TAURI|Cannot.*tauri|not.*defined/i.test(msg)) {
+        if (err instanceof PwIpcError && err.code === "bridge_unavailable") {
           setState({ kind: "bridge-missing" });
         } else {
-          setState({ kind: "error", message: msg });
+          setState({ kind: "error", message: String(err) });
         }
       });
     return () => {
