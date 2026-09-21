@@ -1,0 +1,41 @@
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling pw-core v0.1.0 (/home/runner/work/pw-backtest/pw-backtest/core/pw-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.95s
+     Running unittests src/lib.rs (target/debug/deps/pw_core-2c75ec1939bf3ea0)
+
+running 21 tests
+test types::tests::bar_is_copy_and_partial_eq ... ok
+test types::tests::bar_partial_eq_distinguishes_values ... ok
+test types::tests::bar_json_field_names_are_contract_exact ... ok
+test types::tests::bar_serde_roundtrip ... ok
+test types::tests::direction_json_names ... ok
+test types::tests::enums_are_copy_and_eq ... ok
+test types::tests::fill_model_json_names ... ok
+test types::tests::fill_reason_json_names ... ok
+test types::tests::order_clone_is_independent ... ok
+test types::tests::fill_serde_roundtrip_full ... ok
+test types::tests::order_none_fields_serialize_as_null ... ok
+test types::tests::side_json_names ... ok
+test types::tests::order_null_fields_deserialize_to_none ... ok
+test types::tests::order_type_json_names ... ok
+test types::tests::order_serde_roundtrip_full ... ok
+test types::tests::tif_gtc_and_fill_and_kill_are_strings ... ok
+test types::tests::tick_serde_roundtrip_and_json ... ok
+test types::tests::tif_gtd_is_newtype_variant ... ok
+test types::tests::timestamp_alias_is_i64_milliseconds ... ok
+test types::tests::trailing_kind_json_names ... ok
+test types::tests::trailing_spec_json_shape ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests pw_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

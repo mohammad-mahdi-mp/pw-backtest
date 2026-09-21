@@ -1,0 +1,28 @@
+    Updating crates.io index
+     Locking 11 packages to latest compatible versions
+ Downloading crates ...
+  Downloaded itoa v1.0.18
+  Downloaded quote v1.0.47
+  Downloaded proc-macro2 v1.0.107
+  Downloaded zmij v1.0.23
+  Downloaded unicode-ident v1.0.26
+  Downloaded serde v1.0.229
+  Downloaded serde_derive v1.0.229
+  Downloaded serde_core v1.0.229
+  Downloaded memchr v2.8.3
+  Downloaded serde_json v1.0.151
+  Downloaded syn v3.0.6
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+    Checking memchr v2.8.3
+    Checking itoa v1.0.18
+   Compiling pw-engine v0.1.0 (/home/runner/work/pw-backtest/pw-backtest/core/pw-engine)
+   Compiling syn v3.0.6
+   Compiling serde_derive v1.0.229
+    Checking pw-core v0.1.0 (/home/runner/work/pw-backtest/pw-backtest/core/pw-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.91s
