@@ -37,16 +37,16 @@ impl std::io::Write for FileLogWriterGuard<'_> {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        if let Ok(guard) = self.0.lock() {
-            if let Some(file) = guard.as_ref() {
-                return file.flush();
-            }
+        let mut guard = match self.0.lock() {
+            Ok(g) => g,
+            Err(_) => return Ok(()), // poisoned: drop silently
+        };
+        match guard.as_mut() {
+            Some(file) => file.flush(),
+            None => Ok(()),
         }
-        Ok(())
     }
 }
-
-use std::io::Write as _;
 
 /// Initialize the global tracing subscriber writing to
 /// `$XDG_DATA_HOME/pw-backtest/logs/pw-app.log`.
