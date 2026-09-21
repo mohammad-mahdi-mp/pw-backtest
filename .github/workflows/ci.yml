@@ -117,3 +117,96 @@ jobs:
           git commit -m "ci logs for run ${GITHUB_RUN_ID}"
           git branch -M ci-logs
           git push --force origin ci-logs
+
+  # P0-T03 verify: the Tauri shell compiles (clippy-strict) and the IPC
+  # contract fixtures round-trip (tests/contracts.rs).
+  app:
+    name: App shell (clippy + contracts)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install WebKitGTK build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+
+      - name: Install clippy
+        run: rustup component add clippy
+
+      - name: Clippy (strict)
+        id: clippy
+        run: |
+          set +e
+          cargo clippy --all-targets -- -D warnings > /tmp/app-clippy.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Contract + unit tests
+        id: tests
+        run: |
+          set +e
+          cargo test > /tmp/app-test.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Report diagnostics + final status
+        run: |
+          s_clippy="${{ steps.clippy.outputs.status }}"
+          s_tests="${{ steps.tests.outputs.status }}"
+          printf '::error::app statuses clippy=%s tests=%s\n' "$s_clippy" "$s_tests" || true
+          { grep -E "^error" -A 5 /tmp/app-clippy.log | head -60; } | while read -r line; do
+            printf '::error::%s\n' "${line:0:400}"
+          done || true
+          if [ "$s_tests" != "0" ]; then
+            tail -n 25 /tmp/app-test.log | while read -r line; do printf '::error::%s\n' "${line:0:400}"; done || true
+          fi
+          if [ "$s_clippy" = "0" ] && [ "$s_tests" = "0" ]; then
+            echo "APP GATES GREEN"
+            exit 0
+          fi
+          exit 1
+
+      - name: Push raw logs to ci-logs branch
+        if: failure()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci-log-bot"
+          git config user.email "actions@localhost"
+          git checkout --orphan ci-logs-app-tmp
+          git rm -rf --quiet . 2>/dev/null || true
+          mkdir -p logs
+          cp /tmp/app-clippy.log logs/ 2>/dev/null || true
+          cp /tmp/app-test.log logs/ 2>/dev/null || true
+          echo "run ${GITHUB_RUN_ID} (${GITHUB_SHA})" > logs/meta.txt
+          git add -A
+          git commit -m "ci logs (app) for run ${GITHUB_RUN_ID}"
+          git branch -M ci-logs
+          git push --force origin ci-logs
+
+  # P0-T03 verify: UI skeleton typechecks and builds (pnpm lockfile frozen).
+  ui:
+    name: UI (typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install (frozen lockfile)
+        run: pnpm --dir ui install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --dir ui typecheck
+
+      - name: Build
+        run: pnpm --dir ui build

@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens (NATIVE_PLAN.md §5.1, default "Grey" theme).
+ * The TS source of truth is ui/src/design/tokens.ts (P0-T06); the theme
+ * engine (P1-T01) will generate this block + CSS vars from it at build time
+ * so themes can swap every value.
+ */
+@theme {
+  --color-bg: #131722;
+  --color-bg-elev: #1e222d;
+  --color-border: #2a2e39;
+  --color-text: #d1d4dc;
+  --color-text-2: #b2b5be;
+  --color-text-3: #787b86;
+  --color-accent: #2962ff;
+  --color-up: #089981;
+  --color-down: #f23645;
+  --color-grid: #1e222d;
+  --color-crosshair: #758696;
+}
+
+:root {
+  --pw-bg: #131722;
+  --pw-bg-elev: #1e222d;
+  --pw-border: #2a2e39;
+  --pw-text: #d1d4dc;
+  --pw-text-2: #b2b5be;
+  --pw-text-3: #787b86;
+  --pw-accent: #2962ff;
+  --pw-up: #089981;
+  --pw-down: #f23645;
+}
+
+/* Phase-0 placeholder styling (design system lands in P1-T01/T02). */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--pw-bg);
+  color: var(--pw-text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.boot {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.card {
+  width: 440px;
+  padding: 24px;
+  border: 1px solid var(--pw-border);
+  border-radius: 8px;
+  background: var(--pw-bg-elev);
+}
+
+.card h1 {
+  margin: 0 0 2px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sub {
+  margin: 0 0 16px;
+  color: var(--pw-text-3);
+}
+
+.muted {
+  color: var(--pw-text-2);
+}
+
+.err {
+  color: var(--pw-down);
+}
+
+.ok {
+  color: var(--pw-up);
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+dt {
+  color: var(--pw-text-3);
+}
+
+dd {
+  margin: 0;
+}
+
+code {
+  color: var(--pw-accent);
+}
