@@ -235,6 +235,9 @@ at build). Any new token = contract task.
 - `ui/package.json` (React 18, LWC v5, Monaco, zustand, tanstack-query/table,
   tailwind v4, vitest, playwright) — pnpm lock committed.
 CI fails if either manifest changes without a `contract:` commit.
+Contract log: P1-T01 landed the first slice (zustand; vitest+jsdom+
+@testing-library test toolchain) — the rest join with their owning cards
+(Monaco P5-T09, tanstack P1-T04, playwright e2e P1-T05, LWC P1-T07).
 
 ---
 
