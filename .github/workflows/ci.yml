@@ -367,9 +367,7 @@ jobs:
         run: |
           echo "## Spike A report" >> "$GITHUB_STEP_SUMMARY"
           cat spike-report.json >> "$GITHUB_STEP_SUMMARY" || true
-          tr ',' '\n' < spike-report.json | head -40 | while read -r line; do
-            printf '::error::SPIKE %s\n' "${line:0:380}"
-          done || true
+          printf '::error::SPIKE-REPORT %s\n' "$(tr -d '\n' < spike-report.json | head -c 3500)" || true
 
       - uses: actions/upload-artifact@v4
         if: always()

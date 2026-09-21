@@ -28,7 +28,7 @@ feeds: the Phase-1 chart core renderer (P1-T07).
 
 | Environment | Renderer | fps (pan) | fps (zoom) | RSS (MiB) | Verdict |
 |---|---|---|---|---|---|
-| CI `ubuntu-latest`, Xvfb, WebKitGTK (Fedora-free runner) | llvmpipe (software) | _filled by the `spike` CI job_ | _same_ | _same_ | sanity only |
+| CI `ubuntu-latest`, Xvfb, Tauri/WebKitGTK (run 35593975741) | llvmpipe (software) | ran ✓ — numbers in the run's `spike-report` artifact | ran ✓ | recorded | sanity only |
 | **Owner Fedora 43 hardware** (authoritative) | GPU/WebGL | **PENDING — run `scripts/spike-run.sh`** | — | — | decides GO/NO-GO |
 
 ## Decision rule (from the card)
