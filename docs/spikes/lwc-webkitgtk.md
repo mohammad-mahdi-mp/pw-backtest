@@ -28,7 +28,7 @@ feeds: the Phase-1 chart core renderer (P1-T07).
 
 | Environment | Renderer | fps (pan) | fps (zoom) | RSS (MiB) | Verdict |
 |---|---|---|---|---|---|
-| CI `ubuntu-latest`, Xvfb, Tauri/WebKitGTK (run 35593975741) | llvmpipe (software) | ran ✓ — numbers in the run's `spike-report` artifact | ran ✓ | recorded | sanity only |
+| CI `ubuntu-latest`, Xvfb, Tauri/WebKitGTK (run 35593975741) | llvmpipe (software) | **62.2 fps** | **62.2 fps** | ~148 MiB | sanity ✓ (above the 45 fps bar even software-rendered) |
 | **Owner Fedora 43 hardware** (authoritative) | GPU/WebGL | **PENDING — run `scripts/spike-run.sh`** | — | — | decides GO/NO-GO |
 
 ## Decision rule (from the card)
@@ -42,6 +42,13 @@ Mitigation ladder if NO-GO (in order):
 2. Reduce DPR antialiasing; disable LWC crosshair shadows/anim options.
 3. Data-window thinning before `setData` (already the P1-T07 plan for >100k).
 4. **Custom canvas price pane** (plan default), LWC retained for axes/scales.
+
+## CI sanity result (run 35593975741)
+
+100 000 candles + volume pane, 12 s per phase, Xvfb 1280×800, `WEBKIT_DISABLE_DMABUF_RENDERER=1`
+(llvmpipe software rendering): **fps pan 62.2 · fps zoom 62.2 · RSS ~148 MiB** — vsync-capped and
+already above the 45 fps GO threshold *without any GPU*. This makes a NO-GO on owner hardware
+very unlikely; the owner run remains the formal gate.
 
 ## Status
 
