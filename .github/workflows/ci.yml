@@ -59,8 +59,15 @@ jobs:
         run: |
           set +e
           curl -sSfL https://github.com/EmbarkStudios/cargo-deny/releases/latest/download/cargo-deny-x86_64-unknown-linux-musl.tar.gz -o /tmp/deny.tgz
-          tar -xzf /tmp/deny.tgz -C /tmp
-          /tmp/cargo-deny-x86_64-unknown-linux-musl/cargo-deny check licenses sources > /tmp/deny.log 2>&1
+          mkdir -p /tmp/deny && tar -xzf /tmp/deny.tgz -C /tmp/deny
+          DENY_BIN="$(find /tmp/deny -type f -name cargo-deny | head -1)"
+          if [ -z "$DENY_BIN" ]; then
+            echo "cargo-deny download/extract failed" > /tmp/deny.log
+            ls -la /tmp/deny >> /tmp/deny.log 2>&1
+            echo "status=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          "$DENY_BIN" --manifest-path "$GITHUB_WORKSPACE/core/Cargo.toml" check licenses sources > /tmp/deny.log 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -255,16 +262,35 @@ jobs:
       - name: Install toolchain + Tauri Linux deps
         run: |
           dnf install -y git nodejs npm rust cargo gcc gcc-c++ make pkg-config \
-            webkit2gtk4.1-devel gtk3-devel librsvg2-devel openssl-devel
-          npm install -g pnpm@9.15.0
+            webkit2gtk4.1-devel gtk3-devel librsvg2-devel openssl-devel 2>&1 | tee /tmp/setup.log
+          npm install -g pnpm@9.15.0 2>&1 | tee -a /tmp/setup.log
 
       - uses: actions/checkout@v4
 
       - name: Build rpm (pnpm --dir ui tauri build)
-        run: pnpm --dir ui tauri build
+        run: |
+          set -o pipefail
+          pnpm --dir ui tauri build 2>&1 | tee /tmp/rpm-build.log
 
       - name: Show bundle output
         run: ls -la app/src-tauri/target/release/bundle/rpm/
+
+      - name: Push raw logs to ci-logs-fc${{ matrix.fc }} branch
+        if: failure()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci-log-bot"
+          git config user.email "actions@localhost"
+          git checkout --orphan ci-logs-rpm-tmp
+          git rm -rf --quiet . 2>/dev/null || true
+          mkdir -p logs
+          cp /tmp/setup.log logs/ 2>/dev/null || true
+          cp /tmp/rpm-build.log logs/ 2>/dev/null || true
+          echo "run ${GITHUB_RUN_ID} (${GITHUB_SHA}) fc${{ matrix.fc }}" > logs/meta.txt
+          git add -A
+          git commit -m "ci logs (rpm fc${{ matrix.fc }}) for run ${GITHUB_RUN_ID}"
+          git branch -M "ci-logs-fc${{ matrix.fc }}"
+          git push --force origin "ci-logs-fc${{ matrix.fc }}"
 
       - name: Upload rpm artifact
         uses: actions/upload-artifact@v4
@@ -272,3 +298,58 @@ jobs:
           name: pw-backtest-fedora-${{ matrix.fc }}-rpm
           path: app/src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
+
+  # P0-T05: Spike A — LWC v5 on WebKitGTK, headless under Xvfb.
+  # CI renders via llvmpipe (software) → numbers are a LOWER BOUND/sanity
+  # check; the authoritative GO/NO-GO run happens on owner hardware
+  # (scripts/spike-run.sh → docs/spikes/lwc-webkitgtk.md).
+  spike:
+    name: Spike A (LWC v5 × WebKitGTK, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install WebKitGTK + Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            xvfb libgbm1 libxkbcommon-x11-0 libgl1-mesa-dri
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: spikes/lwc-webkitgtk/web/pnpm-lock.yaml
+
+      - name: Install spike deps
+        run: pnpm --dir spikes/lwc-webkitgtk/web install --frozen-lockfile
+
+      - name: Run headless spike (autorun, exits when done)
+        run: |
+          timeout 420 xvfb-run -a -s "-screen 0 1280x800x24" \
+            env SPIKE_AUTORUN=1 SPIKE_DURATION=12 \
+                SPIKE_REPORT_PATH="$GITHUB_WORKSPACE/spike-report.json" \
+                WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+                pnpm --dir spikes/lwc-webkitgtk/web tauri dev \
+            || echo "spike runner exited"
+          test -f spike-report.json || { echo "NO SPIKE REPORT PRODUCED"; exit 1; }
+
+      - name: Report numbers (annotations) + artifact
+        if: always()
+        run: |
+          echo "## Spike A report" >> "$GITHUB_STEP_SUMMARY"
+          cat spike-report.json >> "$GITHUB_STEP_SUMMARY" || true
+          tr ',' '\n' < spike-report.json | head -40 | while read -r line; do
+            printf '::error::SPIKE %s\n' "${line:0:380}"
+          done || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spike-report
+          path: spike-report.json
+          if-no-files-found: ignore
