@@ -60,7 +60,7 @@ the same module) · Spec · Verify (exact command + expected) · Anti-goals**.
 
 ### 0.5 Progress ledger (maintain every commit: check the box)
 ```
-Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [ ]P0-T04* [ ]P0-T05* [x]P0-T06
+Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [x]P0-T04 [ ]P0-T05* [x]P0-T06
 Phase 1  [ ]P1-T01 [ ]P1-T02 [ ]P1-T03 [ ]P1-T04 [ ]P1-T05 [ ]P1-T06
          [ ]P1-T07 [ ]P1-T08 [ ]P1-T09 [ ]P1-T10 [ ]P1-T11 [ ]P1-T12⭐
 Phase 2  [ ]P2-T01 [ ]P2-T02 [ ]P2-T03 [ ]P2-T04 [ ]P2-T05 [ ]P2-T06
@@ -86,12 +86,12 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 - P0-T03 ✅ verified green in CI (app clippy + contracts, ui typecheck+build);
   layout: crate at `app/src-tauri`, CLI host script in ui (`pnpm --dir ui tauri dev`).
 - P0-T06 ✅ verified green (contracts fixture byte-identical; typed skeleton).
-- P0-T04* — code landed (Fedora 42/43 rpm containers, cargo-deny via
-  taiki-e action, §1.7 manifest guard with locally-verified negative path);
-  final verify = run 35592153143, in flight when the sandbox GitHub token
-  expired — confirm all-jobs-green on reconnect, then tick.
+- P0-T04 ✅ VERIFIED — run 35592153143: rpm (Fedora 42) green, rpm
+  (Fedora 43) green, cargo-deny green, §1.7 manifest guard green
+  (rust/app/ui jobs green in the same run).
 - P0-T05* — harness + docs + owner script delivered; CI headless run is a
-  software-render sanity check only. **Decision PENDING the owner hardware
+  software-render sanity check only (first two attempts fixed: apt noble
+  renamed libasound2→libasound2t64; runner env/exit diagnosed via ci-logs). **Decision PENDING the owner hardware
   run** (`scripts/spike-run.sh`) per the card's own gate; provisional GO for
   LWC v5 assumed for planning. Tick after the owner number lands in
   docs/spikes/lwc-webkitgtk.md.
