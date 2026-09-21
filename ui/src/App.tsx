@@ -3,6 +3,8 @@ import { appHello, PwIpcError, type HelloInfo } from "./lib/ipc";
 import { useAppearance } from "./design/settings";
 import { BUILT_IN_THEMES } from "./design/themes";
 import type { Density, FontSize } from "./design/applyTheme";
+import { useHashRoute, navigate } from "./lib/router";
+import DevBoard from "./dev-board/DevBoard";
 
 type LoadState =
   | { kind: "loading" }
@@ -52,12 +54,8 @@ function AppearanceSwitcher(): React.JSX.Element {
   );
 }
 
-/**
- * Phase-0 placeholder page: proves the Tauri IPC bridge by rendering the
- * `app_hello` payload (via the typed contract layer). Replaced by the real
- * shell in Phase 1 (P1-T05); the theme switcher demonstrates P1-T01 live.
- */
-export default function App() {
+/** Phase-0 boot page: IPC bridge smoke test (real shell arrives in P1-T05). */
+function BootPage(): React.JSX.Element {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
   useEffect(() => {
@@ -105,7 +103,19 @@ export default function App() {
         )}
         {state.kind === "error" && <p className="err">{state.message}</p>}
         <AppearanceSwitcher />
+        <div className="switcher">
+          <button className="mono" style={{ background: "none", border: "none", cursor: "pointer" }} onClick={() => navigate("/dev-board")}>
+            → dev board (/dev-board)
+          </button>
+        </div>
       </div>
     </main>
   );
+}
+
+/** Route table: `/` boot page · `/dev-board` component gallery. */
+export default function App(): React.JSX.Element {
+  const route = useHashRoute();
+  if (route.startsWith("/dev-board")) return <DevBoard />;
+  return <BootPage />;
 }
