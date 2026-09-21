@@ -61,7 +61,7 @@ the same module) · Spec · Verify (exact command + expected) · Anti-goals**.
 ### 0.5 Progress ledger (maintain every commit: check the box)
 ```
 Phase 0  [x]P0-T01 [x]P0-T02 [x]P0-T03 [x]P0-T04 [ ]P0-T05* [x]P0-T06
-Phase 1  [x]P1-T01 [x]P1-T02 [ ]P1-T03 [ ]P1-T04 [ ]P1-T05 [ ]P1-T06
+Phase 1  [x]P1-T01 [x]P1-T02 [x]P1-T03 [x]P1-T04 [ ]P1-T05 [ ]P1-T06
          [ ]P1-T07 [ ]P1-T08 [ ]P1-T09 [ ]P1-T10 [ ]P1-T11 [ ]P1-T12⭐
 Phase 2  [ ]P2-T01 [ ]P2-T02 [ ]P2-T03 [ ]P2-T04 [ ]P2-T05 [ ]P2-T06
          [ ]P2-T07 [ ]P2-T08
@@ -83,6 +83,16 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 ⭐ = phase gate card (owner demo + sign-off before the next phase starts).
 
 **Phase 1 delivery notes (this session):**
+- P1-T03 ✅ primitives B (Dialog focus-trap, FloatingPanel window-tracked
+  drag + persistence, Tabs, Tooltip, Toasts, Switch, Slider, Progress-hair)
+  — 15 tests; drag uses mouse+window listeners (jsdom pointer coords
+  unavailable; better UX anyway).
+- P1-T04 ✅ primitives C (virtualized DataGrid — 50k rows <40 DOM rows,
+  Tree, HotkeyRecorder, Badge, EmptyState) + DevBoard B/C wings — 9 tests.
+- (Speed directive from the owner: batching 2 cards per push; verify via one
+  CI run for the pair. e2e route/interaction assertions still deferred to
+  the P1-T05 harness.)
+**Phase 1 delivery notes (this session):**
 - P1-T02 ✅ VERIFIED — run 35595908869-followup all-green. Primitives A
   (Button/IconButton/Input/NumberField/Select/DropdownMenu/ContextMenu) +
   `/dev-board` (all × states × Grey/White scopes). 40 vitest tests; e2e
@@ -93,6 +103,16 @@ Phase 9  [ ]P9-T01 [ ]P9-T02 [ ]P9-T03 [ ]P9-T04 [ ]P9-T05 [ ]P9-T06
 - verify checklists learned twice: configs OUTSIDE `ui/src` (vitest.config,
   tsconfig) must be staged explicitly — `git add ui/src` alone misses them.
 
+**Phase 1 delivery notes (this session):**
+- P1-T03 ✅ primitives B (Dialog focus-trap, FloatingPanel window-tracked
+  drag + persistence, Tabs, Tooltip, Toasts, Switch, Slider, Progress-hair)
+  — 15 tests; drag uses mouse+window listeners (jsdom pointer coords
+  unavailable; better UX anyway).
+- P1-T04 ✅ primitives C (virtualized DataGrid — 50k rows <40 DOM rows,
+  Tree, HotkeyRecorder, Badge, EmptyState) + DevBoard B/C wings — 9 tests.
+- (Speed directive from the owner: batching 2 cards per push; verify via one
+  CI run for the pair. e2e route/interaction assertions still deferred to
+  the P1-T05 harness.)
 **Phase 1 delivery notes (this session):**
 - P1-T01 ✅ VERIFIED — run 35593975741 all-green (rust, app, ui incl.
   vitest, manifest guard, rpm fc42+fc43, spike headless run succeeded).
