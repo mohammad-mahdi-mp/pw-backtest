@@ -10,6 +10,9 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: true,
+    // Dev-only: the sandbox preview proxies through varying hostnames.
+    // Does not affect production builds.
+    allowedHosts: true,
   },
   build: {
     target: "es2022",
