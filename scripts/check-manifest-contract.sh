@@ -29,7 +29,7 @@ fi
 echo "manifest-check: changed frozen manifests:"
 echo "$CHANGED"
 
-CONTRACTS="$(git log --format=%s "$BEFORE..$AFTER" | grep -ci 'contract:' || true)"
+CONTRACTS="$(git log --format=%s "$BEFORE..$AFTER" | grep -Eci 'contract[(:]' || true)"
 if [ "$CONTRACTS" -eq 0 ]; then
   echo "FAIL: frozen manifest(s) changed without a 'contract:' commit in this push"
   echo "(EXECUTION_PLAN.md §1.7 — dependency growth is a contract task)"

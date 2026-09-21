@@ -6,16 +6,16 @@
   "build": {
     "beforeDevCommand": {
       "script": "pnpm dev",
-      "cwd": "../../web"
+      "cwd": "../web"
     },
     "devUrl": "http://localhost:5180",
-    "frontendDist": "../../web/dist"
+    "frontendDist": "../web/dist"
   },
   "app": {
     "windows": [
       {
         "label": "spike",
-        "title": "LWC v5 × WebKitGTK spike",
+        "title": "LWC v5 \u00d7 WebKitGTK spike",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
