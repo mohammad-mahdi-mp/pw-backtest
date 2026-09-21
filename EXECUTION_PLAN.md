@@ -243,6 +243,9 @@ CI fails if either manifest changes without a `contract:` commit.
   with failing harness). Verify: 50 fixture files present; `cargo test -p pw-engine`
   runs and reports 50 **expected failures** (harness wired, broker not yet). Anti-goals:
   do not implement the broker.
+  DELIVERED (commit 48800d5): 50 = 11 existing broker tests (ported 1:1) + 39 new;
+  the other existing tests are strategy-level (need the pandas venv) and their
+  parity lands in P5-T07 per its own fixtures.
 - **P0-T03** Tauri app scaffold.
   Files: `app/src-tauri/**` (window 1440×900 min 1024×700, title "pw-backtest",
   tracing → XDG log, config.toml load, `app_hello` command), `ui/**` skeleton
@@ -393,10 +396,12 @@ datamanager/**`.
   report with re-download, CSV import wizard with preview, storage stats), symbol
   search over real local universe, Screener tab (port of reference scan: chg%,
   RSI, SMA20/50/200, volume ratio, range pos — **parity test vs reference output**
-  on 3 symbols), status bar feed status; **delete** `ui/src/lib/fixtures.ts`,
-  http-adapter dev path, and any reference-only UI imports (keep `reference/`
-  directory + parity tests). Verify: e2e — download job (mock provider) → chart
-  loads real parquet → screener matches reference within 1e-9.
+  on 3 symbols), status bar feed status; **delete** `ui/src/lib/fixtures.ts`
+  (the pure-TS Phase-1 dev generator — there is no server-side dev adapter;
+  the web era was removed from the repo) and any reference-only UI imports
+  (keep `reference/` directory + parity tests). Verify: e2e — download job
+  (mock provider) → chart loads real parquet → screener matches reference
+  within 1e-9.
 **Phase 2 gate:** all parity suites green (bars, CSV, screener, classification);
 ledger ✅; owner demo: Data tab on real Binance data.
 

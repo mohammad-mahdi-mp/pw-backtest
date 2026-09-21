@@ -1,0 +1,9 @@
+# Reference-engine venv requirements (parity runs only — not shipped).
+pandas
+numpy
+pydantic-settings
+
+# Optional, only for exercising provider/paper reference code locally:
+# httpx
+# websockets
+# ccxt

@@ -8,7 +8,6 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -22,11 +21,10 @@ dist/
 *.log
 .pnpm-store/
 
-# Data / local
-data/db.sqlite3
-data/market/
-data/screenshots/
+# Local app data (the installed app stores real data under XDG dirs,
+# never in the repository)
 *.parquet
+*.sqlite3
 
 # IDE
 .vscode/
@@ -34,9 +32,4 @@ data/screenshots/
 .DS_Store
 
 # Env
-backend/.env
-frontend/tsconfig.tsbuildinfo
-
-# VitePress
-.vitepress/cache/
-.vitepress/dist/
+.env

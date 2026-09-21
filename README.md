@@ -1,125 +1,41 @@
 # pw-backtest
 
-Personal replay & backtesting platform for Fedora 44 Workstation — an FXReply-style replay tool with TradingView-like charts and Pine Script support.
+A native Fedora Linux desktop platform for strategy backtesting and bar/tick
+replay — TradingView-grade charting, an event-driven Rust engine, and a
+parity-verified port of the original Python reference semantics. No browser:
+one system-installed app (Tauri v2 + Rust core + WebKitGTK).
 
-| Market      | Data sources                                 |
-|-------------|----------------------------------------------|
-| Forex       | OANDA, Interactive Brokers (TWS), Dukascopy  |
-| Crypto      | Binance + 100+ exchanges via CCXT            |
-| Stocks/ETF  | Yahoo Finance, Interactive Brokers           |
+> **Status:** Phase 0 of 9 (foundations). See `NATIVE_PLAN.md` (product spec)
+> and `EXECUTION_PLAN.md` (AI-agent execution protocol + task graph).
 
-> See [`PLAN.md`](./PLAN.md) for the full roadmap and architecture.
+## Repository layout
 
-## Status
+| Path | What it is |
+|------|------------|
+| `core/` | Rust workspace: `pw-core` (frozen domain types), `pw-engine` (broker/replay/backtest engine, parity-driven) |
+| `reference/` | **Golden parity spec** — the original Python engine (broker, metrics, Pine, data, risk surfaces) kept solely to verify the Rust port 1:1. Not part of the shipped app. |
+| `core/tests/fixtures/` | 50 golden broker fixtures generated from the reference (`reference/parity_export.py`) |
+| `ui/` | (Phase 0/1) Tauri app shell + the new TradingView-grade UI — replaces the removed web frontend entirely |
+| `docs/` | Native-app documentation (spikes, UI reference, engine semantics) |
+| `scripts/` | Engineering gates (e.g. the parity expected-failure gate) |
 
-| Phase | Component                       | Status         |
-|-------|---------------------------------|----------------|
-| 0     | Scaffolding (FastAPI + React)   | ✅ Done        |
-| 1     | Data layer (CCXT/Yahoo/OANDA/IBKR, parquet storage) | ✅ Working — downloads with date range, CSV import (MT4/TV), WebSocket streaming (CCXT/Yahoo live; OANDA/IBKR routing needs keys/TWS) |
-| 2     | Charts (Lightweight Charts v4)  | ✅ Candlesticks + indicator overlays + synced sub-panes |
-| 3     | Replay / manual trading engine  | ✅ **Done** — full VirtualBroker: market/limit/stop fills, SL/TP auto-triggers, netting/flip, commissions, margin, P&L & equity |
-| 4     | Pine Script engine              | ✅ Full expression parser, `if/else`/`for`/`var` control flow (indicators & strategies), history `close[k]`, `strategy.position_size`, Python strategy API as an alternative |
-| 5     | Automated backtesting           | ✅ **Done** — strategy runner over VirtualBroker, metrics dashboard, equity/DD curves, trade list with MAE/MFE, saved runs, grid & walk-forward optimizer, monthly heatmap, CSV/JSON export |
-| 6     | Paper trading                   | ✅ **Done** — live-price sessions on the VirtualBroker (Binance/Yahoo refresh, background heartbeat, offline fallback) |
-| 7     | Polish — drawings, screener, MC | ✅ **Done** — chart drawings, local-data screener, Monte Carlo, desktop notifications, multi-chart layouts, shortcut editor, layout persistence |
-| docs  | VitePress documentation site     | ✅ `docs/` — guide (charts, replay, paper, backtest), Pine reference, REST API |
+## The parity law
 
-## Quick start (Fedora 44)
+The Python reference is the spec; the Rust engine must reproduce its event
+sequences exactly (`1e-9`). Fixtures are regenerated only through
+`python3 reference/parity_export.py` — never edited by hand. While the broker
+port (P3-T01) is pending, `scripts/check-engine-expected-failures.sh` enforces
+exactly 50 expected parity failures as the wired-harness gate.
 
-```bash
-# 1. Install system deps + venv + frontend deps
-./scripts/setup_fedora.sh
+## Development
 
-# 2. Run backend (http://127.0.0.1:8000) + frontend (http://127.0.0.1:5173)
-./scripts/run_dev.sh
-```
-
-Then open http://127.0.0.1:5173.
-
-## Dev quick start (any Linux, no root)
+Requires a Rust toolchain (stable, with clippy/rustfmt) and Node 22+ / pnpm.
 
 ```bash
-# Backend
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (new terminal)
-cd frontend
-npm install -g pnpm   # if not installed
-pnpm install
-pnpm dev
+cargo test -p pw-core --manifest-path core/Cargo.toml   # contract type tests
+bash scripts/check-engine-expected-failures.sh          # parity harness gate
+python3 reference/parity_export.py                      # regenerate golden fixtures
 ```
 
-## Current features you can try now
-
-1. **Symbol / timeframe switcher** — type `BTC/USDT`, `ETH/USDT`, `EUR/USD`, `AAPL`, …
-2. **Load Data** button — downloads historical candles from Binance (crypto) or Yahoo (stocks) into `data/market/.../*.parquet`. Offline? Run `python scripts/seed_sample_data.py` for demo data (BTC, ETH, EUR/USD).
-3. **Interactive candlestick chart** — pan/zoom/crosshair with OHLC tooltip (TradingView Lightweight Charts).
-4. **Pine editor at the bottom** — write an indicator and hit **Run** to plot overlays / sub-panes. Supported: `ta.sma/ema/wma/rma/rsi/macd/bb/atr/stoch/highest/lowest/vwap`, `ta.crossover/crossunder`, full expressions (ternary, and/or/not, math.*), `input.*`, `color.*`, inline `plot(ta.sma(close, 20))`.
-5. **Bar Replay (FXReply-style)** — press **Replay**: the future is hidden; step/play candle-by-candle
-   (Space = play/pause, ←/→ = step, X = close position). Place market/limit/stop orders with
-   SL/TP from the Trade tab — fills, stop-outs and take-profits are simulated bar-by-bar with
-   spread, slippage and commissions. Entry/SL/TP lines, trade markers and P&L appear on the chart.
-6. **Automated strategy backtesting** — write a `strategy()` script in the Pine editor, press
-   **Backtest**, and it runs bar-by-bar over the same VirtualBroker engine (spread, slippage,
-   commissions, margin). `strategy.entry/close/exit(stop=, limit=)/cancel_all` are supported with
-   next-bar-open fills, percent-of-equity or fixed sizing and pyramiding=0. The Backtest tab shows
-   net P&L, Sharpe, Sortino, CAGR, max drawdown, profit factor, win rate, expectancy, streaks,
-   an equity + drawdown chart, the full trade list with exit reasons, and a history of saved runs.
-7. **Paper trading** — press **Paper** in the top bar: the session trades against live prices
-   (data auto-refreshed from Binance for crypto, Yahoo for stocks/FX — no API keys needed).
-   Market orders fill at the live quote; limit/stop orders and SL/TP triggers evaluate on every
-   closed candle. A background heartbeat keeps the session running even with the UI closed.
-   The floating PAPER pill shows equity and open-position P&L; stopped sessions are read-only.
-   Desktop notifications fire for fills/stop-outs while the tab is in the background.
-   Offline? Paper mode degrades gracefully to the last stored bars.
-8. **Chart drawings** — the left toolbar is real: trend line, ray, horizontal line, rectangle and
-   Fibonacci retracement. Drawings are anchored to time/price (they survive panning & zooming and
-   extrapolate beyond the data edge), magnet mode snaps to OHLC, click to select, `Del` to remove,
-   `Esc` to cancel, and everything is saved per symbol+timeframe.
-9. **Screener** — the Screener button scans every symbol you have data for: last price, 24h
-   change, RSI(14), price vs SMA20/50/200, volume surge and 200-bar range position. Sort any
-   column, click a row to jump to that chart.
-10. **Monte Carlo** — after a backtest, press the 🎲 button: the trade P&L sequence is
-    bootstrap-resampled 2000× to show the distribution of possible outcomes (median/percentile
-    equity, probability of ending below start, drawdown percentiles).
-11. **Account tab** — equity, balance, win rate, profit factor and per-trade journal notes.
-    Your layout (symbol, timeframe, chart type, indicators, panels) is restored on reload.
-12. **Multi-chart layouts** — switch between 1, 2 side-by-side, 2 stacked or 4 charts. Each
-    pane keeps its own symbol, timeframe, chart type and indicators; the pane with the blue
-    ring is the active one — the top bar, symbol search, screener and Pine editor all target
-    it. Switch panes by clicking or with <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd>.
-13. **Keyboard shortcuts** — open the keyboard icon in the top bar to rebind any action
-    (replay controls, close position, pane focus, panel toggles) and reset to defaults.
-14. **Documentation** — a full VitePress site lives in `docs/`: `cd docs && pnpm install &&
-    pnpm docs:dev` for the guide, Pine reference and REST API docs.
-
-## Project layout
-
-```
-backend/        FastAPI app (API, data providers, Pine compiler/runtime, backtest engine)
-frontend/       React + Vite + Tailwind + Lightweight Charts + Monaco (Pine editor)
-data/           SQLite DB + parquet market data + screenshots
-scripts/        setup_fedora.sh, run_dev.sh
-docs/           (architecture notes)
-PLAN.md         full roadmap & architecture
-```
-
-## Adding broker credentials
-
-Edit `backend/.env` and add:
-
-```
-OANDA_API_KEY=...
-OANDA_ACCOUNT_ID=...
-OANDA_ENV=practice   # or 'live'
-
-IBKR_HOST=127.0.0.1
-IBKR_PORT=7497       # TWS paper port is usually 7497, live 7496
-IBKR_CLIENT_ID=1
-```
-
-For IBKR you need to run TWS or IB Gateway locally with API access enabled and "Allow connections from localhost only" checked.
+CI (GitHub Actions) runs clippy (strict), the pw-core contract tests, and the
+parity gate on every push; Fedora 42/43 rpm builds land with the full P0-T04 CI.

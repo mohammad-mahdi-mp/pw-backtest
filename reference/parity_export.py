@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "reference" / "backend"))
 
 from app.replay.engine import PendingOrder, Position, VirtualBroker  # noqa: E402
 from app.replay.markets import get_market_config  # noqa: E402

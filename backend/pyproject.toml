@@ -1,9 +1,0 @@
-[project]
-name = "pw-backtest-backend"
-version = "0.1.0"
-description = "pw-backtest: personal replay & backtesting platform backend"
-requires-python = ">=3.11"
-
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"

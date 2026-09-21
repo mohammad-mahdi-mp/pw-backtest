@@ -6,7 +6,8 @@
 >
 > **v2.1 (2026-09-21):** owner rejected the existing web UI. §5 now defines a full UI
 > rebuild on a TradingView-grade design system; phases restructured around it.
-> All earlier decisions remain valid (D1–D6). This supersedes `PLAN.md` (web-era, historical)
+> All earlier decisions remain valid (D1–D6). This supersedes `PLAN.md`
+> (web-era roadmap — removed from the repository together with the web app)
 > and v2.0 of this document.
 >
 > **Execution layer:** this document is the *product spec*. The AI-agent execution
@@ -124,16 +125,19 @@ pw-backtest/
 │   │                          # tradepanel/, strategy/, datamanager/, settings/, alerts/
 │   └── src/lib/               # tauri IPC adapter, stores, formatters
 ├── bridge/                    # Python: ibkr_bridge.py, python_strategy_runner.py
-├── reference/                 # legacy FastAPI backend (from backend/) — GOLDEN REFERENCE
+├── reference/                 # golden parity spec (original Python engine, spec subset) — NOT shipped
 ├── packaging/                 # release CI, minisign, fedora build scripts
-├── docs/                      # VitePress (also served as in-app Help)
+├── docs/                      # native-app docs (also served as in-app Help)
 ├── scripts/
 └── NATIVE_PLAN.md
 ```
 
-**`reference/` = the spec.** The 20 existing Python tests + Python broker/Pine runtime
-define expected behavior; Rust modules are accepted only when provably equivalent (§10).
-`reference/` is never shipped in the RPM.
+**`reference/` = the spec.** The kept Python reference tests (broker ×11,
+Pine ×6, optimizer ×6) + the Python broker/Pine runtime define expected
+behavior; Rust modules are accepted only when provably equivalent (§10).
+`reference/` is never shipped in the RPM. (The web-era application code —
+FastAPI API layer, web frontend, web docs — was removed from the repository;
+only the parity-spec subset survives under `reference/`.)
 
 ### 3.2 Rust dependencies (workspace-pinned)
 
@@ -579,9 +583,9 @@ applies to grids, watchlist, dock tabs.
   object tree + undo/redo + persistence).
 - **Settings v1** (Appearance/Chart sections) + **Layouts & Templates** (save/
   switch/hotkeys) + **Watchlists** (multi-list, favorites) on fixture data.
-- Dev mode still served by `reference/` FastAPI via the http adapter (deleted when
-  Rust data lands in Phase 2); a **fixture provider** (generated seed data, no
-  network) drives the shell for dev & e2e.
+- Dev mode driven by the **fixture provider** (seeded in-UI generator, no
+  network — the FastAPI dev server is gone with the web era); deleted when
+  Rust data lands in Phase 2 (P2-T08).
 - **Gate:** design board + shell + chart on fixtures; **owner design sign-off**
   (look, feel, density, keyboard flow); Spike A outcome integrated; 60 fps check.
 
