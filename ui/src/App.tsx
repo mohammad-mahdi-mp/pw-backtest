@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { appHello, PwIpcError, type HelloInfo } from "./lib/ipc";
+import { bindEventBridge } from "./lib/ipcRuntime";
 import { useAppearance } from "./design/settings";
 import { BUILT_IN_THEMES } from "./design/themes";
 import type { Density, FontSize } from "./design/applyTheme";
 import { useHashRoute, navigate } from "./lib/router";
+import { AppShell } from "./features/shell/AppShell";
+import { hydrateFromStorage } from "./features/shell/workspace";
 import DevBoard from "./dev-board/DevBoard";
 
 type LoadState =
@@ -113,9 +116,17 @@ function BootPage(): React.JSX.Element {
   );
 }
 
-/** Route table: `/` boot page · `/dev-board` component gallery. */
+/** Route table: `/` app shell · `/boot` IPC smoke · `/dev-board` gallery. */
 export default function App(): React.JSX.Element {
   const route = useHashRoute();
+
+  useEffect(() => {
+    // Workspace geometry from the persisted config + native event forwarding.
+    hydrateFromStorage();
+    void bindEventBridge();
+  }, []);
+
   if (route.startsWith("/dev-board")) return <DevBoard />;
-  return <BootPage />;
+  if (route.startsWith("/boot")) return <BootPage />;
+  return <AppShell />;
 }
