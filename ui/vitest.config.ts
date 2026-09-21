@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    // @testing-library/react auto-cleanup registers via global afterEach
+    globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
     // Real timers only — no fake-timer flakiness in appearance tests.
     restoreMocks: true,
