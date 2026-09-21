@@ -54,20 +54,16 @@ jobs:
           echo "status=$?" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
       - name: cargo-deny (licenses + sources)
         id: deny
         run: |
           set +e
-          curl -sSfL https://github.com/EmbarkStudios/cargo-deny/releases/latest/download/cargo-deny-x86_64-unknown-linux-musl.tar.gz -o /tmp/deny.tgz
-          mkdir -p /tmp/deny && tar -xzf /tmp/deny.tgz -C /tmp/deny
-          DENY_BIN="$(find /tmp/deny -type f -name cargo-deny | head -1)"
-          if [ -z "$DENY_BIN" ]; then
-            echo "cargo-deny download/extract failed" > /tmp/deny.log
-            ls -la /tmp/deny >> /tmp/deny.log 2>&1
-            echo "status=1" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          "$DENY_BIN" --manifest-path "$GITHUB_WORKSPACE/core/Cargo.toml" check licenses sources > /tmp/deny.log 2>&1
+          cargo deny check licenses sources > /tmp/deny.log 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -267,6 +263,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Install ui dependencies (frozen lockfile)
+        run: pnpm --dir ui install --frozen-lockfile
+
       - name: Build rpm (pnpm --dir ui tauri build)
         run: |
           set -o pipefail
@@ -279,6 +278,7 @@ jobs:
         if: failure()
         run: |
           cd "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "ci-log-bot"
           git config user.email "actions@localhost"
           git checkout --orphan ci-logs-rpm-tmp
@@ -313,7 +313,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
-            xvfb libgbm1 libxkbcommon-x11-0 libgl1-mesa-dri
+            xvfb libgbm1 libxkbcommon-x11-0 libgl1-mesa-dri libasound2
 
       - uses: pnpm/action-setup@v4
         with:
@@ -330,13 +330,32 @@ jobs:
 
       - name: Run headless spike (autorun, exits when done)
         run: |
+          set -o pipefail
           timeout 420 xvfb-run -a -s "-screen 0 1280x800x24" \
             env SPIKE_AUTORUN=1 SPIKE_DURATION=12 \
                 SPIKE_REPORT_PATH="$GITHUB_WORKSPACE/spike-report.json" \
                 WEBKIT_DISABLE_DMABUF_RENDERER=1 \
                 pnpm --dir spikes/lwc-webkitgtk/web tauri dev \
+            2>&1 | tee /tmp/spike.log \
             || echo "spike runner exited"
           test -f spike-report.json || { echo "NO SPIKE REPORT PRODUCED"; exit 1; }
+
+      - name: Push spike log to ci-logs-spike branch
+        if: failure()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "ci-log-bot"
+          git config user.email "actions@localhost"
+          git checkout --orphan ci-logs-spike-tmp
+          git rm -rf --quiet . 2>/dev/null || true
+          mkdir -p logs
+          cp /tmp/spike.log logs/ 2>/dev/null || true
+          echo "run ${GITHUB_RUN_ID} (${GITHUB_SHA}) spike" > logs/meta.txt
+          git add -A
+          git commit -m "ci logs (spike) for run ${GITHUB_RUN_ID}"
+          git branch -M ci-logs-spike
+          git push --force origin ci-logs-spike
 
       - name: Report numbers (annotations) + artifact
         if: always()
