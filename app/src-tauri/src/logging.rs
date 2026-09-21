@@ -3,7 +3,6 @@
 //! [`MakeWriter`] over an append-mode [`std::fs::File`] suffices for Phase 0.
 
 use std::fs::{File, OpenOptions};
-use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -31,7 +30,8 @@ impl std::io::Write for FileLogWriterGuard<'_> {
             Err(_) => return Ok(buf.len()), // poisoned: drop silently
         };
         match guard.as_mut() {
-            Some(file) => file.write(buf),
+            // fully-qualified: no trait import needed in the module scope
+            Some(file) => std::io::Write::write(file, buf),
             None => Ok(buf.len()),
         }
     }
@@ -42,7 +42,7 @@ impl std::io::Write for FileLogWriterGuard<'_> {
             Err(_) => return Ok(()), // poisoned: drop silently
         };
         match guard.as_mut() {
-            Some(file) => file.flush(),
+            Some(file) => std::io::Write::flush(file),
             None => Ok(()),
         }
     }
@@ -74,6 +74,7 @@ pub fn init() -> PathBuf {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use std::io::Write as _;
 
     #[test]
     fn writer_drops_records_without_file() {
