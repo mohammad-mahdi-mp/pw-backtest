@@ -83,10 +83,13 @@ describe("guardedCall", () => {
       throw new PwIpcError("command_failed", "connection reset by peer");
     });
     const promise = guardedCall("download", op);
+    // Attach the rejection handler BEFORE advancing timers — otherwise the
+    // rejection lands unhandled between timer ticks (CI-order-sensitive).
+    const expectation = expect(promise).rejects.toThrow("connection reset by peer");
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300).catch(() => undefined);
     });
-    await expect(promise).rejects.toThrow("connection reset by peer");
+    await expectation;
     expect(op).toHaveBeenCalledTimes(2);
     expect(errorToasts()).toEqual(["download: connection reset by peer"]);
   });
